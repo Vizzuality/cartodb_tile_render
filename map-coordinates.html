@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Google Maps JavaScript API v3 Example: Map Coordinates</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+        <meta charset="UTF-8">
+        <style>
+            html, body,#map_canvas {
+                width: 100%;
+                height: 100%;
+                border: 0;
+                padding: 0;
+                margin: 0;
+            } 
+        </style>
+        <script type="text/javascript" src="http://maps.googleapis.com/maps/api/js?sensor=false"> </script>
+        <script type="text/javascript" src="gmaps_mercator.js"> </script>
+        <script type="text/javascript" src="canvas_tile_layer.js"> </script>
+        <script type="text/javascript">
+
+            var map;
+            var chicago = new google.maps.LatLng(41.850033,-87.6500523);
+
+            function createInfoWindowContent() {
+                var numTiles = 1 << map.getZoom();
+                var projection = new MercatorProjection();
+                var worldCoordinate = projection.fromLatLngToPoint(chicago);
+                var pixelCoordinate = new google.maps.Point(
+                        worldCoordinate.x * numTiles,
+                        worldCoordinate.y * numTiles);
+                var tileCoordinate = projection.latLngToTile(chicago, map.getZoom());
+
+                return ['Chicago, IL',
+                       'LatLng: ' + chicago.lat() + ' , ' + chicago.lng(),
+                       'World Coordinate: ' + worldCoordinate.x + ' , ' +
+                           worldCoordinate.y,
+                       'Pixel Coordinate: ' + Math.floor(pixelCoordinate.x) + ' , ' +
+                           Math.floor(pixelCoordinate.y),
+                       'Tile Coordinate: ' + tileCoordinate.x + ' , ' +
+                           tileCoordinate.y + ' at Zoom Level: ' + map.getZoom()
+                           ].join('<br>');
+            }
+
+function initialize() {
+    var mapOptions = {
+zoom: 0,
+      center: chicago,
+      mapTypeId: google.maps.MapTypeId.ROADMAP
+    };
+
+    map = new google.maps.Map(document.getElementById('map_canvas'),
+            mapOptions);
+
+    var coordInfoWindow = new google.maps.InfoWindow();
+    coordInfoWindow.setContent(createInfoWindowContent());
+    coordInfoWindow.setPosition(chicago);
+    coordInfoWindow.open(map);
+    var layer = new CanvasTileLayer(function(tile_info) {
+          var radius = 5;
+          var ctx = tile_info.ctx;
+          ctx.fillStyle = "#FF0000";
+          ctx.beginPath();
+          ctx.arc(radius, radius, radius, 0, Math.PI * 2, true);
+          ctx.closePath();
+          ctx.fill();
+    });
+    map.overlayMapTypes.insertAt(0, layer);
+
+    google.maps.event.addListener(map, 'zoom_changed', function() {
+            coordInfoWindow.setContent(createInfoWindowContent());
+            coordInfoWindow.open(map);
+            });
+}
+
+//https://javi.cartodb.com/api/v1/sql?q=select%20the_geom,%20ele%20from%20track_points_1&format=geojson
+google.maps.event.addDomListener(window, 'load', initialize);
+</script>
+</head>
+<body>
+    <div id="map_canvas">
+    </div>
+</body>
+</html>
