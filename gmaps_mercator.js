@@ -50,6 +50,17 @@
     return new google.maps.LatLng(lat, lng);
   };
 
+  MercatorProjection.prototype.tileBBox = function(x, y, zoom) {
+    var numTiles = 1 << zoom;
+    var inc = TILE_SIZE/numTiles;
+    var px = x*TILE_SIZE/numTiles;
+    var py = x*TILE_SIZE/numTiles;
+    return [
+        this.fromPointToLatLng(new google.maps.Point(px, py + inc)),
+        this.fromPointToLatLng(new google.maps.Point(px + inc, py))
+    ];
+  };
+
   MercatorProjection.prototype.latLngToTile = function(latLng, zoom) {
         var numTiles = 1 << zoom;
         var projection = this;

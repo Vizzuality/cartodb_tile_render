@@ -72,6 +72,9 @@ zoom: 0,
             });
 }
 
+function get_tile_data(x, y) {
+    var sql = "select the_geom,ele from track_points_1 WHERE the_geom && ST_SetSRID(ST_MakeBox2D(ST_Point(-989502.1875, 528439.5625), ST_Point(-987121.375, 529933.1875)), 2467)"
+}
 //https://javi.cartodb.com/api/v1/sql?q=select%20the_geom,%20ele%20from%20track_points_1&format=geojson
 google.maps.event.addDomListener(window, 'load', initialize);
 </script>
