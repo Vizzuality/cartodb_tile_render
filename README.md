@@ -1,9 +1,8 @@
 
-
 cartodb vector render on canvas with css support
 ================================================
 
-this example tries to show how to render on the client vector tiles with some css which is applied on client side so you don't need mapnik on the server side.
+this code tries to show how to render vector tiles on HTML5 canvas over google maps with some css. The style is applied on client side so you don't need mapnik on the server side.
 
 take it as a prototype: there is no error checking, no performance/memory optimization... you know, enjoy.
 
