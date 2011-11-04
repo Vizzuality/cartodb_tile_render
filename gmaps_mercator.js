@@ -63,21 +63,22 @@
 
   MercatorProjection.prototype.tilePoint = function(x, y, zoom) {
         var numTiles = 1 << zoom;
-        var px = x*TILE_SIZE/numTiles;
-        var py = y*TILE_SIZE/numTiles;
+        var px = x*TILE_SIZE;
+        var py = y*TILE_SIZE;
         return [px, py];
   }
 
-  MercatorProjection.prototype.latLngToTilePoint = function(latLng, zoom) {
+  MercatorProjection.prototype.latLngToTilePoint = function(latLng, x, y, zoom) {
         var numTiles = 1 << zoom;
         var projection = this;
         var worldCoordinate = projection.fromLatLngToPoint(latLng);
         var pixelCoordinate = new google.maps.Point(
                 worldCoordinate.x * numTiles,
                 worldCoordinate.y * numTiles);
+        var tp = this.tilePoint(x, y, zoom);
         return new google.maps.Point(
-                Math.floor(pixelCoordinate.x % TILE_SIZE),
-                Math.floor(pixelCoordinate.y % TILE_SIZE));
+                Math.floor(pixelCoordinate.x - tp[0]),
+                Math.floor(pixelCoordinate.y - tp[1]));
   }
 
   MercatorProjection.prototype.latLngToTile = function(latLng, zoom) {

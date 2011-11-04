@@ -30,7 +30,7 @@ CanvasTileLayer.prototype.create_tile_canvas = function(coord, zoom, ownerDocume
     if (tile_id in this.tiles)
         delete this.tiles[tile_id];
 
-    this.tiles[tile_id] = {canvas: canvas, ctx: ctx};
+    this.tiles[tile_id] = {canvas: canvas, ctx: ctx, coord: coord, zoom: zoom};
 
     // custom setup
     if (this.canvas_setup)
@@ -40,6 +40,12 @@ CanvasTileLayer.prototype.create_tile_canvas = function(coord, zoom, ownerDocume
 }
 
 
+CanvasTileLayer.prototype.redraw= function() {
+    for(var t in this.tiles) {
+        var tile = this.tiles[t];
+        this.canvas_setup(tile, tile.coord, tile.zoom);
+    }
+};
 // could be called directly...
 CanvasTileLayer.prototype.getTile = function(coord, zoom, ownerDocument) {
     return this.create_tile_canvas(coord, zoom, ownerDocument);
