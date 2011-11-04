@@ -9,4 +9,18 @@ take it as a prototype: there is no error checking, no performance/memory optimi
 
 This demo uses cartodb as tile server
 
+** quickstart **
+
+        map = new google.maps.Map(document.getElementById('map_canvas'),
+                mapOptions);
+
+        var cartodb = new CartoDB({
+                user: 'jatorre',
+                table: 'ny_districts',
+                columns: ['num_stops_normalized'],
+                css: "{ $c: Math.min(255, 255*$num_stops_normalized/10.0).toFixed(0); polygon-fill: rgb($c, $c, $c); line-color: #F0F; }"
+        });
+
+        map.overlayMapTypes.insertAt(0, cartodb.layer);
+
 
