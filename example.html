@@ -25,7 +25,7 @@
                 border-radius: 5px;
                 position: absolute;
                 top: 20px;
-                left: 20px;
+                left: 100px;
                 width: 400px;
                 height: 320px;
                 background-color: #FFF;
@@ -63,7 +63,35 @@
                 var mapOptions = {
                   zoom: 13,
                   center: valladolid,
-                  mapTypeId: google.maps.MapTypeId.ROADMAP
+                  mapTypeId: google.maps.MapTypeId.ROADMAP,
+                  styles:[
+                    {
+                      stylers: [
+                        { invert_lightness: true },
+                        { saturation: -100 }
+                      ]
+                    },{
+                      featureType: "transit",
+                      stylers: [
+                        { visibility: "simplified" },
+                        { invert_lightness: true },
+                        { lightness: -33 }
+                      ]
+                    },{
+                      featureType: "administrative",
+                      elementType: "labels",
+                      stylers: [
+                        { visibility: "simplified" }
+                      ]
+                    },{
+                      featureType: "transit.line",
+                      stylers: [
+                        { saturation: -64 },
+                        { lightness: -35 },
+                        { visibility: "off" }
+                      ]
+                    }
+                  ]
                 };
 
 
@@ -71,15 +99,16 @@
                         mapOptions);
 
                 var cartodb = new CartoDB({
-                        //user: 'javi',
                         user: 'jatorre',
-                        table: 'ny_districts',
+                        //user: 'simon',
+                        //table: 'jamon',//'jamon', //_10m_coastline
                         //table: 'track_points_1',
+                        table: 'ny_districts',
                         columns: ['num_stops_normalized'],
                         where: '',
                         debug: false,
-                        //css: "{ $c: 255*($ele - 870.0)/(910.0-870.0); point-color: rgb($c, $c, $c); }"
-                        css: "{ $c: Math.min(255, 255*$num_stops_normalized/10.0).toFixed(0); polygon-fill: rgb($c, $c, $c); line-color: #F0F; }"
+                        css: "{ $c: Math.min(255, 255*$num_stops_normalized/15.0).toFixed(0); polygon-fill: rgba($c, 32, 128,0.7); line-color: rgba(82, 202, 231,0.2); }"
+                        //css: "{ polygon-fill: rgba(0, 0, 0,0.6); line-color: rgba(0, 0, 0,0.8); }"
                 });
 
                 document.getElementById('update_css').onclick = function() {

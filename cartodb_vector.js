@@ -91,7 +91,7 @@ CartoDB.prototype.sql = function(sql, callback) {
         callback(data);
         return;
     }
-    $.getJSON(this.base_url  + "?q=" + encodeURIComponent(sql) + "&format=geojson&callback=?",function(data){
+    $.getJSON(this.base_url  + "?q=" + encodeURIComponent(sql) + "&format=geojson&dp=6&callback=?",function(data){
         self.cache[sql] = data;
         callback(data);
     });
@@ -101,8 +101,27 @@ CartoDB.prototype.sql = function(sql, callback) {
 CartoDB.prototype.tile_data = function(x, y, zoom , callback) {
     var opts = this.options;
     var projection = new MercatorProjection();
-    var bbox = projection.tileBBox(x, y, zoom);
-    var columns = ['the_geom'].concat(opts.columns).join(',');
+    var bbox = projection.tileBBox(x, y, zoom);    
+    var geom_column = 'the_geom';
+    var the_geom;
+
+    // simplify
+    // todo: replace with area/vertices ratio dependent?
+    if (zoom >= 17){      
+      the_geom = geom_column
+    } else if (zoom >= 14 ){
+      the_geom = 'ST_SimplifyPreserveTopology("'+geom_column+'",0.000001) as the_geom'
+    } else if (zoom >= 10){
+      the_geom = 'ST_SimplifyPreserveTopology("'+geom_column+'",0.0001) as the_geom'
+    } else if (zoom >=6){
+      the_geom = 'ST_SimplifyPreserveTopology("'+geom_column+'",0.001) as the_geom'
+    } else if (zoom >= 4){
+      the_geom = 'ST_SimplifyPreserveTopology("'+geom_column+'",0.01) as the_geom'      
+    } else {
+      the_geom = 'ST_SimplifyPreserveTopology("'+geom_column+'",0.1) as the_geom'      
+    }
+    
+    var columns = [the_geom].concat(opts.columns).join(',');
     var sql = "select " + columns +" from " + opts.table + " WHERE the_geom && ST_SetSRID(ST_MakeBox2D(";
     sql += "ST_Point(" + bbox[0].lng() + "," + bbox[0].lat() +"),";
     sql += "ST_Point(" + bbox[1].lng() + "," + bbox[1].lat() +")), 4326)";
@@ -131,9 +150,9 @@ CartoDB.prototype.apply_style = function(ctx, data) {
 // init google maps layer
 CartoDB.prototype._init_layer = function() {
     var self = this;
-    function map_latlon(latlng, x, y, zoom) {
-      latlng = new google.maps.LatLng(latlng[1], latlng[0]);
-      return self.projection.latLngToTilePoint(latlng, x, y, zoom);
+    function map_latlon(latlng, x, y, zoom) {      
+        latlng = new google.maps.LatLng(latlng[1], latlng[0]);
+        return self.projection.latLngToTilePoint(latlng, x, y, zoom);        
     }
     var primitive_render = {
         'Point': function(ctx, x, y, zoom, coordinates) {
