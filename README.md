@@ -8,6 +8,11 @@ take it as a prototype: there is no error checking, no performance/memory optimi
 
 This demo uses cartodb as tile server
 
+** demo **
+
+http://javisantana.github.com/cartodb_tile_render/example.html
+
+
 ** quickstart **
 
         map = new google.maps.Map(document.getElementById('map_canvas'),
