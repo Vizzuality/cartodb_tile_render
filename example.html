@@ -107,7 +107,7 @@
                         columns: ['num_stops_normalized'],
                         where: '',
                         debug: false,
-                        css: "{ $c: Math.min(255, 255*$num_stops_normalized/15.0).toFixed(0); polygon-fill: rgba($c, 32, 128,0.7); line-color: rgba(82, 202, 231,0.2); }"
+                        css: "{ $c: Math.min(255, 255*$num_stops_normalized/15.0).toFixed(0); polygon-fill: rgba($c, 32, 128,0.7); line-color: rgba(82, 202, 231,0.1); }"
                         //css: "{ polygon-fill: rgba(0, 0, 0,0.6); line-color: rgba(0, 0, 0,0.8); }"
                 });
 
@@ -134,7 +134,7 @@
         {
             $c: Math.min(255, 255*$num_stops_normalized/15.0).toFixed(0); 
             polygon-fill: rgba($c, 32, 128,0.7); 
-            line-color: rgba(82, 202, 231,0.2); 
+            line-color: rgba(82, 202, 231,0.1); 
         }
         </textarea>
         <button id="update_css">udpate css</button>
