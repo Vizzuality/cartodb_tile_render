@@ -132,9 +132,9 @@
         <p>change the css and press update css, i.e <em>line-color: #FFF;</em></p>
         <textarea id="css_text">
         {
-            $c: Math.min(255, 255*$num_stops_normalized/10.0).toFixed(0);
-            polygon-fill: rgb($c, $c, $c); 
-            line-color: #C00; 
+            $c: Math.min(255, 255*$num_stops_normalized/15.0).toFixed(0); 
+            polygon-fill: rgba($c, 32, 128,0.7); 
+            line-color: rgba(82, 202, 231,0.2); 
         }
         </textarea>
         <button id="update_css">udpate css</button>
