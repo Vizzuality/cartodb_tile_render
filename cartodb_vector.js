@@ -156,6 +156,7 @@ CartoDB.prototype._init_layer = function() {
     }
     var primitive_render = {
         'Point': function(ctx, x, y, zoom, coordinates) {
+                  ctx.save();
                   var radius = 2;
                   var p = map_latlon(coordinates, zoom);
                   ctx.translate(p.x, p.y);
@@ -164,6 +165,7 @@ CartoDB.prototype._init_layer = function() {
                   ctx.closePath();
                   ctx.fill();
                   ctx.stroke();
+                  ctx.restore();
         },
         'MultiPoint': function(ctx, x, y,zoom, coordinates) {
               var prender = primitive_render['Point'];
@@ -198,13 +200,12 @@ CartoDB.prototype._init_layer = function() {
             var tile_point = self.projection.tilePoint(coord.x, coord.y, zoom);
             if(data.features.length) {
                   var primitives = data.features;
+                  var layers = [];
                   for(var i = 0; i < primitives.length; ++i) {
                       var renderer = primitive_render[primitives[i].geometry.type];
                       if(renderer) {
                           self.apply_style(ctx, primitives[i].properties);
-                          ctx.save();
                           renderer(ctx, coord.x, coord.y, zoom, primitives[i].geometry.coordinates);
-                          ctx.restore();
                       } else {
                         console.log("no renderer for ", primitives[i].geometry.type);
                       }
