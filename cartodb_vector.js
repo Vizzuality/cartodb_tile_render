@@ -193,20 +193,15 @@ CartoDB.prototype._init_layer = function() {
         }
     };
 
+    // Method builds a top layer hitgrid. faster, but not as good as a per geometry hitgrid commented below
+    // polygon only
     this.layer = new CanvasTileLayer(function(tile_info, coord, zoom) {
           var ctx = tile_info.ctx;
-
-          // Method builds a top layer hitgrid. faster, but not as good as a per geometry hitgrid commented below
-          // polygon only
-          var hit_canvas  = document.createElement('canvas');
-          hit_canvas.width  = ctx.width;
-          hit_canvas.height = ctx.height;
-          var hit_ctx = hit_canvas.getContext('2d');
+          var hit_ctx = tile_info.hit_ctx;
 
           self.tile_data(coord.x, coord.y, zoom, function(data) {
             var tile_point = self.projection.tilePoint(coord.x, coord.y, zoom);
-              
-            var primitives = data.features;
+            var primitives = tile_info.primitives = data.features;
             if(primitives.length) {
                   for(var i = 0; i < primitives.length; ++i) {
 

@@ -13,24 +13,30 @@ function CanvasTileLayer(canvas_setup) {
 CanvasTileLayer.prototype.create_tile_canvas = function(coord, zoom, ownerDocument) {
 
     // create canvas and reset style
-    var canvas = ownerDocument.createElement('canvas');
-    canvas.style.border  = "none";
-    canvas.style.margin  = "0";
-    canvas.style.padding = "0";
+    var canvas      = ownerDocument.createElement('canvas');
+    var hit_canvas  = ownerDocument.createElement('canvas');
+    canvas.style.border  = hit_canvas.style.border = "none";
+    canvas.style.margin  = hit_canvas.style.margin = "0";
+    canvas.style.padding = hit_canvas.style.padding = "0";
 
     // prepare canvas and context sizes
     var ctx    = canvas.getContext('2d');
     ctx.width  = canvas.width = this.tileSize.width;
     ctx.height = canvas.height = this.tileSize.height;
 
+    var hit_ctx = hit_canvas.getContext('2d');
+    hit_canvas.width  = hit_ctx.width  = this.tileSize.width;
+    hit_canvas.height = hit_ctx.height = this.tileSize.height;
+
     //set unique id
     var tile_id = coord.x + '_' + coord.y + '_' + zoom;
     canvas.setAttribute('id', tile_id);
+    hit_canvas.setAttribute('id', tile_id);
 
     if (tile_id in this.tiles)
         delete this.tiles[tile_id];
 
-    this.tiles[tile_id] = {canvas: canvas, ctx: ctx, coord: coord, zoom: zoom};
+    this.tiles[tile_id] = {canvas: canvas, ctx: ctx, hit_canvas: hit_canvas, hit_ctx: hit_ctx, coord: coord, zoom: zoom};
 
     // custom setup
     if (this.canvas_setup)
@@ -46,6 +52,7 @@ CanvasTileLayer.prototype.redraw= function() {
         this.canvas_setup(tile, tile.coord, tile.zoom);
     }
 };
+
 // could be called directly...
 CanvasTileLayer.prototype.getTile = function(coord, zoom, ownerDocument) {
     return this.create_tile_canvas(coord, zoom, ownerDocument);
