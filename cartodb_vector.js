@@ -215,7 +215,8 @@ CartoDB.prototype._init_layer = function() {
                           renderer(ctx, coord.x, coord.y, zoom, primitives[i].geometry.coordinates);
 
                           // render hit tile using index of primitive
-                          hit_ctx.fillStyle = 'rgb(' + Int2RGB(i).join(',') + ')';
+                          hit_ctx.strokeStyle = hit_ctx.fillStyle = 'rgb(' + Int2RGB(i).join(',') + ')';
+                           
                           renderer(hit_ctx, coord.x, coord.y, zoom, primitives[i].geometry.coordinates);
                       } else {
                         console.log("no renderer for ", primitives[i].geometry.type);
