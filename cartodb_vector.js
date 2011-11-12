@@ -192,39 +192,36 @@ CartoDB.prototype._init_layer = function() {
               }
         }
     };
+
     this.layer = new CanvasTileLayer(function(tile_info, coord, zoom) {
           var ctx = tile_info.ctx;
 
-          // draw each primitive onto its own blank canvas to allow us to build up a hitgrid
-          // Fast in chrome, slow in safari
-          var layer_canvas  = document.createElement('canvas');
-          layer_canvas.width  = ctx.width;
-          layer_canvas.height = ctx.height;
-          var layer_ctx = layer_canvas.getContext('2d');
+          // Method builds a top layer hitgrid. faster, but not as good as a per geometry hitgrid commented below
+          // polygon only
+          var hit_canvas  = document.createElement('canvas');
+          hit_canvas.width  = ctx.width;
+          hit_canvas.height = ctx.height;
+          var hit_ctx = hit_canvas.getContext('2d');
 
-          tile_info.canvas.width = tile_info.canvas.width ;
           self.tile_data(coord.x, coord.y, zoom, function(data) {
             var tile_point = self.projection.tilePoint(coord.x, coord.y, zoom);
+              
             var primitives = data.features;
             if(primitives.length) {
                   for(var i = 0; i < primitives.length; ++i) {
 
-                      // reset primitive layer context
-                      layer_ctx.clearRect(0,0,layer_canvas.width,layer_canvas.height);
-
                       // get layer geometry
                       var renderer = primitive_render[primitives[i].geometry.type];
 
-                      // render layer, calculate hitgrid and composite onto main ctx
+                      // render 2 tiles. doesn't handle lines
                       if(renderer) {
-                          self.apply_style(layer_ctx, primitives[i].properties);
-                          renderer(layer_ctx, coord.x, coord.y, zoom, primitives[i].geometry.coordinates);
+                          // render visible tile
+                          self.apply_style(ctx, primitives[i].properties);
+                          renderer(ctx, coord.x, coord.y, zoom, primitives[i].geometry.coordinates);
 
-                          // here is where we would calculate hit grid
-                          // TODO: Implement hit grid :D
-                          
-                          // composite layer context onto main context
-                          ctx.drawImage(layer_canvas,0,0);
+                          // render hit tile using index of primitive
+                          hit_ctx.fillStyle = 'rgb(' + Int2RGB(i).join(',') + ')';
+                          renderer(hit_ctx, coord.x, coord.y, zoom, primitives[i].geometry.coordinates);
                       } else {
                         console.log("no renderer for ", primitives[i].geometry.type);
                       }
@@ -234,3 +231,64 @@ CartoDB.prototype._init_layer = function() {
 
     });
 };
+
+
+// conversion from RGB => integer and back
+// note, we have another channel to play with...
+RGB2Int = function(r,g,b){
+    return r+(256*g)+(256*256*b);
+};
+
+Int2RGB = function(input){
+    var r = input % 256;
+    var g = parseInt(input / 256) % 256;
+    var b = parseInt(input / 256 / 256) % 256;
+    return [r,g,b];
+};
+
+
+
+
+
+//// TO BUILD A PER FEATURE HITGRID (Will work with overlaps). PRETTY SLOW
+//    this.layer = new CanvasTileLayer(function(tile_info, coord, zoom) {
+//        var ctx = tile_info.ctx;
+//
+//        // draw each primitive onto its own blank canvas to allow us to build up a hitgrid
+//        // Fast in chrome, slow in safari
+//        var layer_canvas  = document.createElement('canvas');
+//        layer_canvas.width  = ctx.width;
+//        layer_canvas.height = ctx.height;
+//        var layer_ctx = layer_canvas.getContext('2d');
+//
+//        tile_info.canvas.width = tile_info.canvas.width ;
+//        self.tile_data(coord.x, coord.y, zoom, function(data) {
+//            var tile_point = self.projection.tilePoint(coord.x, coord.y, zoom);
+//            var primitives = data.features;
+//            if(primitives.length) {
+//                for(var i = 0; i < primitives.length; ++i) {
+//
+//                    // reset primitive layer context
+//                    layer_ctx.clearRect(0,0,layer_canvas.width,layer_canvas.height);
+//
+//                    // get layer geometry
+//                    var renderer = primitive_render[primitives[i].geometry.type];
+//
+//                    // render layer, calculate hitgrid and composite onto main ctx
+//                    if(renderer) {
+//                        self.apply_style(layer_ctx, primitives[i].properties);
+//                        renderer(layer_ctx, coord.x, coord.y, zoom, primitives[i].geometry.coordinates);
+//
+//                        // here is where we would calculate hit grid
+//                        // TODO: Implement hit grid :D
+//
+//                        // composite layer context onto main context
+//                        ctx.drawImage(layer_canvas,0,0);
+//                    } else {
+//                        console.log("no renderer for ", primitives[i].geometry.type);
+//                    }
+//                }
+//            }
+//        });
+//
+//    });
