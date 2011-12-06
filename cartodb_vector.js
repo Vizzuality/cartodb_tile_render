@@ -199,7 +199,9 @@ CartoDB.prototype._init_layer = function() {
           var ctx = tile_info.ctx;
           var hit_ctx = tile_info.hit_ctx;
           hit_ctx.strokeStyle = 'rgb(255,255,255)';
-          hit_ctx.lineWidth = 2;  
+//          hit_ctx.fillStyle ="rgb(255,255,255)";
+          hit_ctx.lineWidth = 2;
+//          hit_ctx.fillRect(0,0,tile_info.width, tile_info.height);
 
           self.tile_data(coord.x, coord.y, zoom, function(data) {
             var tile_point = self.projection.tilePoint(coord.x, coord.y, zoom);
