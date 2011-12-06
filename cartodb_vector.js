@@ -198,6 +198,8 @@ CartoDB.prototype._init_layer = function() {
     this.layer = new CanvasTileLayer(function(tile_info, coord, zoom) {
           var ctx = tile_info.ctx;
           var hit_ctx = tile_info.hit_ctx;
+          hit_ctx.strokeStyle = 'rgb(255,255,255)';
+          hit_ctx.lineWidth = 2;  
 
           self.tile_data(coord.x, coord.y, zoom, function(data) {
             var tile_point = self.projection.tilePoint(coord.x, coord.y, zoom);
@@ -215,8 +217,8 @@ CartoDB.prototype._init_layer = function() {
                           renderer(ctx, coord.x, coord.y, zoom, primitives[i].geometry.coordinates);
 
                           // render hit tile using index of primitive
-                          hit_ctx.strokeStyle = hit_ctx.fillStyle = 'rgb(' + Int2RGB(i).join(',') + ')';
-                           
+                          hit_ctx.fillStyle = 'rgb(' + Int2RGB(i).join(',') + ')';
+                                                    
                           renderer(hit_ctx, coord.x, coord.y, zoom, primitives[i].geometry.coordinates);
                       } else {
                         console.log("no renderer for ", primitives[i].geometry.type);
