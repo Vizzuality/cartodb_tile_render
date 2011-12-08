@@ -68,7 +68,7 @@ function CartoDB(options) {
     this.cache = {};
 
     if(options.user && options.table) {
-        this.base_url = 'http://' + options.user + ".cartodb.com/api/v1/sql";
+        this.base_url = 'http://' + options.user + ".cartodb.com/api/v2/sql";
         this._init_layer();
     } else {
         throw Exception("CartoDB user and table must be specified");
@@ -91,6 +91,7 @@ CartoDB.prototype.sql = function(sql, callback) {
         callback(data);
         return;
     }
+    $.ajaxSetup({ cache: true });
     $.getJSON(this.base_url  + "?q=" + encodeURIComponent(sql) + "&format=geojson&dp=6&callback=?",function(data){
         self.cache[sql] = data;
         callback(data);
