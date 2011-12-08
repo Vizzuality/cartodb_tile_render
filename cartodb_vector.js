@@ -64,7 +64,8 @@ var CartoCSS = (function() {
 function CartoDB(options) {
     this.options = options;
     this.projection = new MercatorProjection();
-    this.options.css = this.options.css || '{ point-color: #000; }';
+    this.options.shader = this.options.shader || '{ point-color: "#000"; }';
+    this.shader =  new CartoShader(this.options.shader);
     this.cache = {};
 
     if(options.user && options.table) {
@@ -75,9 +76,13 @@ function CartoDB(options) {
     }
 }
 
-CartoDB.prototype.set_css = function(css) {
-    this.options.css = css;
-    this.layer.redraw();
+CartoDB.prototype.set_css = function(shader) {
+    var self = this;
+    this.options.shader = shader;
+    this.shader = new CartoShader(this.options.shader);
+    setInterval(function() {
+        self.layer.redraw();
+    }, 20);
 }
 // executes sql on the cartodb server
 CartoDB.prototype.sql = function(sql, callback) {
@@ -87,7 +92,6 @@ CartoDB.prototype.sql = function(sql, callback) {
     }
     data = this.cache[sql];
     if(data) {
-        console.log("CACHED");
         callback(data);
         return;
     }
@@ -131,6 +135,9 @@ CartoDB.prototype.tile_data = function(x, y, zoom , callback) {
 
 // apply style to a primitive changing canvas parameters
 CartoDB.prototype.apply_style = function(ctx, data) {
+    data.time = new Date().getTime();
+    this.shader.apply(ctx, data);
+    /*
     var css = CartoCSS.apply(this.options.css, data);
     var mapper = {
         'point-color': 'fillStyle',
@@ -145,6 +152,7 @@ CartoDB.prototype.apply_style = function(ctx, data) {
             ctx[c] = css[attr];
         }
     }
+    */
 };
 
 // init google maps layer
@@ -153,6 +161,24 @@ CartoDB.prototype._init_layer = function() {
     function map_latlon(latlng, x, y, zoom) {      
         latlng = new google.maps.LatLng(latlng[1], latlng[0]);
         return self.projection.latLngToTilePoint(latlng, x, y, zoom);        
+    }
+    var primitive_transform = {
+        'Polygon': function(x, y, zoom, coordinates) {
+             var tc = [];
+             for(var i=0; i < coordinates[0].length; ++i) {
+                p = map_latlon(coordinates[0][i], x, y, zoom);
+                tc.push(p);
+             }
+             return [tc];
+        },
+        'MultiPolygon': function(x, y, zoom, coordinates) {
+              var tc = [];
+              var prender = primitive_transform['Polygon'];
+              for(var i=0; i < coordinates.length; ++i) {
+                  tc.push(prender(x, y, zoom, coordinates[i]));
+              }
+              return tc;
+        }
     }
     var primitive_render = {
         'Point': function(ctx, x, y, zoom, coordinates) {
@@ -175,10 +201,10 @@ CartoDB.prototype._init_layer = function() {
         },
         'Polygon': function(ctx, x, y, zoom, coordinates) {
               ctx.beginPath();
-              var p = map_latlon(coordinates[0][0], x, y, zoom);
+              var p = coordinates[0][0];
               ctx.moveTo(p.x, p.y);
-              for(var i=0; i < coordinates[0].length; ++i) {
-                p = map_latlon(coordinates[0][i], x, y, zoom);
+              for(var i=1; i < coordinates[0].length; ++i) {
+                p = coordinates[0][i];
                 ctx.lineTo(p.x, p.y);
              }
              ctx.closePath();
@@ -193,6 +219,37 @@ CartoDB.prototype._init_layer = function() {
         }
     };
 
+
+    this.render_tile = function(ctx, primitives, coord, zoom) {
+        var self = this;
+        if(primitives.length) {
+            for(var i = 0; i < primitives.length; ++i) {
+
+                  // get layer geometry
+                  var renderer = primitive_render[primitives[i].geometry.type];
+
+                  // render 2 tiles. doesn't handle lines
+                  if(renderer) {
+                      // render visible tile
+                      self.apply_style(ctx, primitives[i].properties);
+                      //renderer(ctx, coord.x, coord.y, zoom, primitives[i].geometry.coordinates);
+                      if(!primitives[i].cached_coordinates) {
+                        var cacher = primitive_transform[primitives[i].geometry.type];
+                        primitives[i].cached_coordinates = cacher(coord.x, coord.y, zoom, primitives[i].geometry.coordinates);
+                      } 
+                      renderer(ctx, coord.x, coord.y, zoom, primitives[i].cached_coordinates);
+
+
+                      // render hit tile using index of primitive
+                      //hit_ctx.fillStyle = 'rgb(' + Int2RGB(i).join(',') + ')';
+                      //renderer(hit_ctx, coord.x, coord.y, zoom, primitives[i].geometry.coordinates);
+                  } else {
+                    console.log("no renderer for ", primitives[i].geometry.type);
+                  }
+               }
+        }
+    };
+
     // Method builds a top layer hitgrid. faster, but not as good as a per geometry hitgrid commented below
     // polygon only
     this.layer = new CanvasTileLayer(function(tile_info, coord, zoom) {
@@ -202,32 +259,20 @@ CartoDB.prototype._init_layer = function() {
 //          hit_ctx.fillStyle ="rgb(255,255,255)";
           hit_ctx.lineWidth = 2;
 //          hit_ctx.fillRect(0,0,tile_info.width, tile_info.height);
+//        
 
-          self.tile_data(coord.x, coord.y, zoom, function(data) {
-            var tile_point = self.projection.tilePoint(coord.x, coord.y, zoom);
-            var primitives = tile_info.primitives = data.features;
-            if(primitives.length) {
-                  for(var i = 0; i < primitives.length; ++i) {
 
-                      // get layer geometry
-                      var renderer = primitive_render[primitives[i].geometry.type];
-
-                      // render 2 tiles. doesn't handle lines
-                      if(renderer) {
-                          // render visible tile
-                          self.apply_style(ctx, primitives[i].properties);
-                          renderer(ctx, coord.x, coord.y, zoom, primitives[i].geometry.coordinates);
-
-                          // render hit tile using index of primitive
-                          hit_ctx.fillStyle = 'rgb(' + Int2RGB(i).join(',') + ')';
-                                                    
-                          renderer(hit_ctx, coord.x, coord.y, zoom, primitives[i].geometry.coordinates);
-                      } else {
-                        console.log("no renderer for ", primitives[i].geometry.type);
-                      }
-                   }
-            }
-          });
+          if(tile_info.primitives) {
+            tile_info.canvas.width = tile_info.canvas.width;
+            self.render_tile(ctx, tile_info.primitives, coord, zoom);
+          } else {
+              self.tile_data(coord.x, coord.y, zoom, function(data) {
+                //var tile_point = self.projection.tilePoint(coord.x, coord.y, zoom);
+                var primitives = tile_info.primitives = data.features;
+                tile_info.canvas.width = tile_info.canvas.width;
+                self.render_tile(ctx, primitives, coord, zoom);
+              });
+          }
 
     });
 };
