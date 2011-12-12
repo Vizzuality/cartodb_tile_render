@@ -33,18 +33,5 @@ CartoShader.prototype.apply = function(canvas_ctx, data) {
     }
 };
 
-function assert(cond) {
-    if(!cond) console.log('FAIL');
-}
 function shader_test() {
-    var c = new CartoShader({
-        'point-color': '#FFF',
-        'line-color': function(data) {
-            return data.color;
-        },
-        'line-width': '1',
-        'polygon-fill': '#00F'
-    });
-    assert(typeof c.compiled['fillStyle']  === 'string');
-    assert(typeof c.compiled['strokeStyle']  === 'function');
 }
