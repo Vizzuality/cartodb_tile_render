@@ -68,7 +68,7 @@
 
         function initialize() {
             var mapOptions = {
-                zoom: 5,
+                zoom: 2,
                 center: valladolid,
                 mapTypeId: google.maps.MapTypeId.ROADMAP,
                 styles:[
@@ -107,8 +107,11 @@
 
             var cartodb = new CartoDB({
                 user: 'vizzuality',
+                table: 'earthquakes',
+                columns: ['quakegeo_i'],
+                /*user: 'vizzuality',
                 table: 'sql_statement',
-                columns: ['rep_area'],
+                columns: ['rep_area'],*/
                 where: '',
                 debug: false,
                 shader: {
@@ -226,13 +229,21 @@
     <h1>Carto like css</h1>
     <p>change the css and press update css, i.e <em>line-color: #FFF;</em></p>
     <textarea id="css_text">
-        {
+     {
             'point-color': '#FFF',
-            'line-color': '#F00',
+            'line-color': "rgba(255, 255, 255, 0.4)",
             'line-width': '1',
             'polygon-fill': function(data) { 
-                var v = Math.cos(data.time*0.004);
-                return "rgba(200, 200, 200,"+  v*Math.min(255, 255*data.num_stops_normalized/15.0)/255.0 + ")";
+                var q = data.quakegeo_i;
+                var colors = [
+                    "rgba(164,133, 90, 0.8)",
+                    "rgba(163,92,58, 0.8)",
+                    "rgba(147, 48, 33, 0.8)",
+                    "rgba(116, 1, 1, 0.8)"
+                ];
+                q = Math.min(5, q);
+                q = Math.max(0, q);
+                return colors[q];
             }
         }
     </textarea>
