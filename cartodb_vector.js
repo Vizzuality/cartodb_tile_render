@@ -1,70 +1,8 @@
 
-var CartoCSS = (function() {
-
-    //micro tmp from thomas fuchs
-    function tmpl(s,d){
-     for(var p in d) {
-       s = s.replace(new RegExp('\\$'+p,'g'), d[p]);
-     }
-     return s;
-    }
-    //var props
-    /*
-    'line-color', 'color'
-    'line-width', 'float'
-    'polygon-fill', 'float'
-    */
-    function parse(css) {
-        // remove get content inside brakets 
-        var parsed = {};
-        var content = css.split('{')[1].split('}')[0];
-        content = content.replace('\n', '').trim();
-        content.split(';').forEach(function(statement) {
-            statement = statement.trim();
-            if(statement.length > 0) {
-                var tk = statement.split(':').map(function(s) { return s.trim(); });
-                parsed[tk[0]] = tk[1];
-            }
-        });
-        return parsed;
-    }
-
-    function _eval(css, data) {
-        var to_eval = parse(css);
-        var evaluated = {};
-        for(var attr in to_eval) {
-            var c = to_eval[attr];
-            if(attr.indexOf('$') != -1) {
-                //something to eval
-                evaluated[attr.slice(1)] = eval(tmpl(c, data));
-                delete to_eval[attr];
-            }
-        }
-        for(var attr in to_eval) {
-            var c = to_eval[attr];
-            c = tmpl(c, data);
-            to_eval[attr] = tmpl(c, evaluated);
-        }
-        return to_eval;
-    }
-
-    return {
-        test: function() { 
-            console.log(
-            _eval("{ line-color: #FFFFFF; line-width: rgb(100, 100, 100); test: $myvar; }", { myvar: 2.3 })); 
-            var css = "{ $c: ($ele - 870)/(910.0-870.0); point-color: rgb($c, $c, $c); }";
-            console.log(_eval(css, {ele: 10}));
-        },
-        parse: parse,
-        apply: _eval
-    };
-
-})();
-
 function CartoDB(options) {
     this.options = options;
     this.projection = new MercatorProjection();
-    this.options.css = this.options.css || '{ point-color: #000; }';
+    this.shader = new CartoShader(this.options.shader || '{ point-color: "#000" }');
     this.cache = {};
 
     if(options.user && options.table) {
@@ -76,7 +14,7 @@ function CartoDB(options) {
 }
 
 CartoDB.prototype.set_css = function(css) {
-    this.options.css = css;
+    this.shader = new CartoShader(css);
     this.layer.redraw();
 }
 // executes sql on the cartodb server
@@ -91,24 +29,26 @@ CartoDB.prototype.sql = function(sql, callback) {
         callback(data);
         return;
     }
-    $.ajaxSetup({ cache: true });
-    $.getJSON(this.base_url  + "?q=" + encodeURIComponent(sql) + "&format=geojson&dp=6&callback=?",function(data){
+    $.getJSON(this.base_url  + "?q=" + encodeURIComponent(sql) + "&format=geojson&dp=6",function(data){
         self.cache[sql] = data;
         callback(data);
     });
 };
+function test() {
+    console.log("EYY");
+}
 
 //get data for a tile
 CartoDB.prototype.tile_data = function(x, y, zoom , callback) {
     var opts = this.options;
     var projection = new MercatorProjection();
-    var bbox = projection.tileBBox(x, y, zoom);    
+    var bbox = projection.tileBBox(x, y, zoom);
     var geom_column = 'the_geom';
     var the_geom;
 
     // simplify
     // todo: replace with area/vertices ratio dependent?
-    if (zoom >= 17){      
+    if (zoom >= 17){
       the_geom = geom_column
     } else if (zoom >= 14 ){
       the_geom = 'ST_SimplifyPreserveTopology("'+geom_column+'",0.000001) as the_geom'
@@ -117,11 +57,11 @@ CartoDB.prototype.tile_data = function(x, y, zoom , callback) {
     } else if (zoom >=6){
       the_geom = 'ST_SimplifyPreserveTopology("'+geom_column+'",0.001) as the_geom'
     } else if (zoom >= 4){
-      the_geom = 'ST_SimplifyPreserveTopology("'+geom_column+'",0.01) as the_geom'      
+      the_geom = 'ST_SimplifyPreserveTopology("'+geom_column+'",0.01) as the_geom'
     } else {
-      the_geom = 'ST_SimplifyPreserveTopology("'+geom_column+'",0.1) as the_geom'      
+      the_geom = 'ST_SimplifyPreserveTopology("'+geom_column+'",0.1) as the_geom'
     }
-    
+
     var columns = [the_geom].concat(opts.columns).join(',');
     var sql = "select " + columns +" from " + opts.table + " WHERE the_geom && ST_SetSRID(ST_MakeBox2D(";
     sql += "ST_Point(" + bbox[0].lng() + "," + bbox[0].lat() +"),";
@@ -132,28 +72,15 @@ CartoDB.prototype.tile_data = function(x, y, zoom , callback) {
 
 // apply style to a primitive changing canvas parameters
 CartoDB.prototype.apply_style = function(ctx, data) {
-    var css = CartoCSS.apply(this.options.css, data);
-    var mapper = {
-        'point-color': 'fillStyle',
-        'line-color': 'strokeStyle',
-        'line-width': 'lineWidth',
-        'polygon-fill': 'fillStyle'
-    };
-
-    for(var attr in css) {
-        var c = mapper[attr];
-        if(c) {
-            ctx[c] = css[attr];
-        }
-    }
+    this.shader.apply(ctx, data);
 };
 
 // init google maps layer
 CartoDB.prototype._init_layer = function() {
     var self = this;
-    function map_latlon(latlng, x, y, zoom) {      
+    function map_latlon(latlng, x, y, zoom) {
         latlng = new google.maps.LatLng(latlng[1], latlng[0]);
-        return self.projection.latLngToTilePoint(latlng, x, y, zoom);        
+        return self.projection.latLngToTilePoint(latlng, x, y, zoom);
     }
     var primitive_render = {
         'Point': function(ctx, x, y, zoom, coordinates) {
@@ -207,6 +134,8 @@ CartoDB.prototype._init_layer = function() {
           self.tile_data(coord.x, coord.y, zoom, function(data) {
             var tile_point = self.projection.tilePoint(coord.x, coord.y, zoom);
             var primitives = tile_info.primitives = data.features;
+            // clear canvas
+            ctx.canvas.width = ctx.canvas.width;
             if(primitives.length) {
                   for(var i = 0; i < primitives.length; ++i) {
 
@@ -221,7 +150,7 @@ CartoDB.prototype._init_layer = function() {
 
                           // render hit tile using index of primitive
                           hit_ctx.fillStyle = 'rgb(' + Int2RGB(i).join(',') + ')';
-                                                    
+
                           renderer(hit_ctx, coord.x, coord.y, zoom, primitives[i].geometry.coordinates);
                       } else {
                         console.log("no renderer for ", primitives[i].geometry.type);
