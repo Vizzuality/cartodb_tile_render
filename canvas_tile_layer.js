@@ -47,6 +47,13 @@ CanvasTileLayer.prototype.create_tile_canvas = function(coord, zoom, ownerDocume
 }
 
 
+CanvasTileLayer.prototype.each = function(callback) {
+    for(var t in this.tiles) {
+        var tile = this.tiles[t];
+        callback(tile);
+    }
+}
+
 CanvasTileLayer.prototype.redraw= function() {
     for(var t in this.tiles) {
         var tile = this.tiles[t];

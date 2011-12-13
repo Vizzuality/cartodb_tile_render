@@ -115,11 +115,30 @@
                 where: '',
                 debug: false,
                 shader: {
-                    'point-color': '#FFF',
-                    'line-color': '#F00',
+                    'point-color': '#fff',
+                    'line-color': '#f00',
                     'line-width': '1',
                     'polygon-fill': function(data) { 
-                        return "rgba(200, 200, 200,"+  Math.min(255, 255*data.num_stops_normalized/15.0)/255.0 + ")";
+                        return "rgba(200, 200, 200, 0.8)";
+                    }
+                }
+            });
+
+            var cartodb2 = new CartoDB({
+                user: 'vizzuality',
+                table: 'earthquakes',
+                columns: ['quakegeo_i'],
+                /*user: 'vizzuality',
+                table: 'sql_statement',
+                columns: ['rep_area'],*/
+                where: '',
+                debug: false,
+                shader: {
+                    'point-color': '#0F0',
+                    'line-color': '#00F',
+                    'line-width': '1',
+                    'polygon-fill': function(data) { 
+                        return "rgba(200, 200, 200, 0.8)";
                     }
                 }
             });
@@ -128,6 +147,8 @@
                 console.log(document.getElementById('css_text').value)
                 cartodb.set_css(document.getElementById('css_text').value);
             };
+
+
 
             map.overlayMapTypes.insertAt(0, cartodb.layer);
             var projection = new MercatorProjection();

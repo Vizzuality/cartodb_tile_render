@@ -22,12 +22,12 @@ CartoShader.prototype.compile = function(shader) {
     }
 }
 
-CartoShader.prototype.apply = function(canvas_ctx, data) {
+CartoShader.prototype.apply = function(canvas_ctx, data, render_context) {
     var shader = this.compiled;
     for(var attr in shader) {
         var fn = shader[attr];
         if(typeof fn === 'function') {
-            fn = fn(data);
+            fn = fn(data, render_context);
         } 
         canvas_ctx[attr] = fn;
     }
