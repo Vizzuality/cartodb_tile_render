@@ -75,13 +75,16 @@ CartoDB.prototype.tile_data = function(x, y, zoom , callback) {
     var sql = "select " + columns +" from " + opts.table + " WHERE the_geom && ST_SetSRID(ST_MakeBox2D(";
     sql += "ST_Point(" + bbox[0].lng() + "," + bbox[0].lat() +"),";
     sql += "ST_Point(" + bbox[1].lng() + "," + bbox[1].lat() +")), 4326)";
+    if(this.options.where) {
+        sql  += " AND " + this.options.where;
+    }
     this.sql(sql, callback);
 };
 
 
 function Renderer() {
     var self = this;
-    this.primitive_render = {
+    var primitive_render = this.primitive_render = {
         'Point': function(ctx, coordinates) {
                   ctx.save();
                   var radius = 2;
@@ -115,7 +118,7 @@ function Renderer() {
         'MultiPolygon': function(ctx, coordinates) {
               var prender = primitive_render['Polygon'];
               for(var i=0; i < coordinates.length; ++i) {
-                  prender(ctx, x, y, zoom, coordinates[i]);
+                  prender(ctx, coordinates[i]);
               }
         }
     };
@@ -146,7 +149,7 @@ CartoDB.prototype.convert_geometry = function(geometry, zoom, x, y) {
         latlng = new google.maps.LatLng(latlng[1], latlng[0]);
         return self.projection.latLngToTilePoint(latlng, x, y, zoom);
     }
-    this.primitive_conversion = {
+    var primitive_conversion = this.primitive_conversion = {
         'Point': function(x, y, zoom, coordinates) {
             return map_latlon(coordinates, x, y, zoom);
         },
@@ -170,7 +173,7 @@ CartoDB.prototype.convert_geometry = function(geometry, zoom, x, y) {
               var polys = [];
               var pc = primitive_conversion['Polygon'];
               for(var i=0; i < coordinates.length; ++i) {
-                  polys.push(pc(ctx, x, y, zoom, coordinates[i]));
+                  polys.push(pc(x, y, zoom, coordinates[i]));
               }
               return polys;
         }

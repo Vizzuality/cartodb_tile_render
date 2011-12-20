@@ -107,35 +107,17 @@
 
             var cartodb = new CartoDB({
                 user: 'vizzuality',
-                table: 'earthquakes',
-                columns: ['quakegeo_i'],
+                table: 'countries_final',
+                //columns: ['quakegeo_i'],
+                columns: ['admin'],
                 /*user: 'vizzuality',
                 table: 'sql_statement',
                 columns: ['rep_area'],*/
-                where: '',
+                where: "admin = 'Russia'",
                 debug: false,
                 shader: {
                     'point-color': '#fff',
                     'line-color': '#f00',
-                    'line-width': '1',
-                    'polygon-fill': function(data) { 
-                        return "rgba(200, 200, 200, 0.8)";
-                    }
-                }
-            });
-
-            var cartodb2 = new CartoDB({
-                user: 'vizzuality',
-                table: 'earthquakes',
-                columns: ['quakegeo_i'],
-                /*user: 'vizzuality',
-                table: 'sql_statement',
-                columns: ['rep_area'],*/
-                where: '',
-                debug: false,
-                shader: {
-                    'point-color': '#0F0',
-                    'line-color': '#00F',
                     'line-width': '1',
                     'polygon-fill': function(data) { 
                         return "rgba(200, 200, 200, 0.8)";
@@ -154,6 +136,7 @@
             var projection = new MercatorProjection();
             var myGoogleVectors = [];
             google.maps.event.addListener(map, 'mousemove', function (event) {
+                    return;
                 // get tile
                 var coord = projection.latLngToTile(event.latLng,map.zoom);
 
