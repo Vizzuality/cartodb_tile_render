@@ -241,10 +241,11 @@ CartoDB.prototype._init_layer = function() {
                             pixels.data[idx + 3]
                         ];
                         //normal
-                        //var v1 = vec3(i, j, c[0]);
-                        //var v2 = vec3(i+1, j, pixels.data[idx + 4]);
-                        //var n = sub(v1, v2);
-                        n = vec(0, 0, 1);
+                        var v1 = vec3(i, j, c[0]);
+                        var v2 = vec3(i+1, j, pixels.data[idx + 4]);
+                        var n = sub(v1, v2);
+                        n = normalize(vec3(n.z, 0, -n.x));
+                        //n = vec(0, 0, 1);
                         c = sh(i, j, c, n);
                         pixels.data[idx + 0] = c[0]
                         pixels.data[idx + 1] = c[1]
