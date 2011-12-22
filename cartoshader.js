@@ -16,9 +16,10 @@ CartoShader.prototype.compile = function(shader) {
     };
     for(var attr in shader) {
         var c = mapper[attr];
-        if(c) {
-            this.compiled[c] = eval("(function() { return shader[attr]; })();");
-        }
+        if(!c) {
+            c = attr;
+        } 
+        this.compiled[c] = eval("(function() { return shader[attr]; })();");
     }
 }
 

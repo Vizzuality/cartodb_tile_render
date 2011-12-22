@@ -53,6 +53,7 @@
             font-family: 'consolas', courier;
         }
     </style>
+    <script type="text/javascript" src="vec3.js"> </script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.6.4/jquery.min.js"></script>
     <script type="text/javascript" src="http://maps.googleapis.com/maps/api/js?sensor=false"> </script>
     <script type="text/javascript" src="cartoshader.js"> </script>
@@ -65,10 +66,10 @@
         var map;
         var valladolid = new google.maps.LatLng(41.701504, -4.8300523);
         var valladolid = new google.maps.LatLng(40.7137, -74.004);
-
+        var valladolid = new google.maps.LatLng(-1.1644706074139692, -49.96582037500002);
         function initialize() {
             var mapOptions = {
-                zoom: 2,
+                zoom: 6,
                 center: valladolid,
                 mapTypeId: google.maps.MapTypeId.ROADMAP,
                 styles:[
@@ -121,8 +122,21 @@
                     'line-width': '1',
                     'polygon-fill': function(data) { 
                         return "rgba(200, 200, 200, 0.8)";
+                    },
+                    'pixel-shader': function(x, y, v) {
+                        var r = 100 + (255 - 100) * v[0]/255;
+                        var g = 0;
+                        var b = 0;
+                        if(v[0] > 100) {
+                            var g = (v[0]-100)+20;
+                        }
+                        if(v[0] > 150) {
+                            b = v[0]-110;
+                        }
+                        return [r, g, b, v[3]];
                     }
                 }
+
             });
 
             document.getElementById('update_css').onclick = function() {
@@ -234,21 +248,19 @@
     <p>change the css and press update css, i.e <em>line-color: #FFF;</em></p>
     <textarea id="css_text">
      {
-            'point-color': '#FFF',
-            'line-color': "rgba(255, 255, 255, 0.4)",
-            'line-width': '1',
-            'polygon-fill': function(data) { 
-                var q = data.quakegeo_i;
-                var colors = [
-                    "rgba(164,133, 90, 0.8)",
-                    "rgba(163,92,58, 0.8)",
-                    "rgba(147, 48, 33, 0.8)",
-                    "rgba(116, 1, 1, 0.8)"
-                ];
-                q = Math.min(5, q);
-                q = Math.max(0, q);
-                return colors[q];
-            }
+            'pixel-shader': function(x, y, v) {
+                        var r = 100 + (255 - 100) * v[0]/255;
+                        var g = 0;
+                        var b = 0;
+                        if(v[0] > 100) {
+                            var g = (v[0]-100)+20;
+                        }
+                        if(v[0] > 150) {
+                            b = v[0]-110;
+                        }
+                        return [r, g, b, v[3]];
+           }
+
         }
     </textarea>
     <button id="update_css">update css</button>

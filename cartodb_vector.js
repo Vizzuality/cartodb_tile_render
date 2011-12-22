@@ -14,7 +14,8 @@ function CartoDB(options) {
       });
 
     if(options.user && options.table) {
-        this.base_url = 'http://' + options.user + ".cartodb.com/api/v2/sql";
+        //this.base_url = 'http://' + options.user + ".cartodb.com/api/v2/sql";
+        this.base_url = 'http://vizzuality.cartodb.com/api/v2/sql';
         this._init_layer();
     } else {
         throw Exception("CartoDB user and table must be specified");
@@ -38,7 +39,7 @@ CartoDB.prototype.sql = function(sql, callback) {
         callback(data);
         return;
     }
-    $.getJSON(this.base_url  + "?q=" + encodeURIComponent(sql) + "&format=geojson&dp=6",function(data){
+    $.getJSON(this.base_url  + "?q=" + encodeURIComponent(sql) ,function(data){
         self.cache[sql] = data;
         callback(data);
     });
@@ -78,6 +79,28 @@ CartoDB.prototype.tile_data = function(x, y, zoom , callback) {
     if(this.options.where) {
         sql  += " AND " + this.options.where;
     }
+    this.sql(sql, callback);
+};
+
+CartoDB.prototype.tile_data_raster = function(x, y, zoom , callback) {
+    var opts = this.options;
+    var projection = new MercatorProjection();
+    var bbox = projection.tileBBox(x, y, zoom);
+
+    var box_sql = "ST_SetSRID(ST_MakeBox2D(";
+    box_sql += "ST_Point(" + bbox[0].lng() + "," + bbox[0].lat() +"),";
+    box_sql += "ST_Point(" + bbox[1].lng() + "," + bbox[1].lat() +")), 4326)";
+
+    var tb = TileLatLonBounds(0, 0, zoom, true);
+    var bounds = [bbox[0].lat(), bbox[0].lng(), bbox[1].lng(), bbox[1].lat(), 100, 100];
+    var table = 'carbon_1gp';
+    //return [ minLat, minLon, maxLat, maxLon ];
+    var sql = "SELECT ST_SummaryStats(rast) as stats, encode(ST_AsPNG(ST_Rescale(rast, "+tb[4]+", "+tb[5]+")) , 'base64') as png FROM (WITH foo AS ( SELECT ST_AsRaster("+box_sql+", rast ) AS rast FROM "+table+" LIMIT 1) " +
+				  "SELECT "+
+       			  "ST_Union(ST_MapAlgebraExpr(m.rast, f.rast, 'rast1', '16BUI')) as rast " +
+				  "FROM "+table+" m JOIN foo f ON ST_Intersects(m.rast, f.rast)) bar;";
+    console.log(sql);
+
     this.sql(sql, callback);
 };
 
@@ -192,12 +215,47 @@ CartoDB.prototype._init_layer = function() {
     var r = new Renderer();
     r.projection = self.projection;
 
+    
+
     this.layer = new CanvasTileLayer(function(tile_info, coord, zoom) {
 
           var ctx = tile_info.ctx;
           var hit_ctx = tile_info.hit_ctx;
 
-          self.tile_data(coord.x, coord.y, zoom, function(data) {
+          self.tile_data_raster(coord.x, coord.y, zoom, function(data) {
+              var img = new Image();
+              img.src = "data:image/png;base64," + data.rows[0].png; 
+              img.onload= function() {
+                ctx.drawImage(img, 0, 0);
+                var pixels = ctx.getImageData(0, 0, ctx.width, ctx.height);
+                var sh = self.shader.compiled['pixel-shader'];
+                var h = ctx.height;
+                var w = ctx.width;
+                for(var i =0 ; i < w; ++i) {
+                    for(var j =0 ; j < h; ++j) {
+                        var idx = 4*(j*w + i);
+                        var c = [
+                            pixels.data[idx + 0],
+                            pixels.data[idx + 1],
+                            pixels.data[idx + 2],
+                            pixels.data[idx + 3]
+                        ];
+                        //normal
+                        //var v1 = vec3(i, j, c[0]);
+                        //var v2 = vec3(i+1, j, pixels.data[idx + 4]);
+                        //var n = sub(v1, v2);
+                        n = vec(0, 0, 1);
+                        c = sh(i, j, c, n);
+                        pixels.data[idx + 0] = c[0]
+                        pixels.data[idx + 1] = c[1]
+                        pixels.data[idx + 2] = c[2]
+                        pixels.data[idx + 3] = c[3];
+                    }
+                }
+                ctx.putImageData(pixels, 0, 0);
+              }
+
+              /*
             var primitives = tile_info.primitives = data.features;
             for(var i = 0; i < primitives.length; ++i) {
                 var p = primitives[i];
@@ -207,6 +265,7 @@ CartoDB.prototype._init_layer = function() {
             }
             r.render(ctx, primitives, coord, zoom, self.shader);
             r.render(hit_ctx, primitives, coord, zoom, self.hit_shader);
+            */
           });
 
     });

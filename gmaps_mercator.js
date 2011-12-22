@@ -22,6 +22,67 @@
     this.pixelsPerLonRadian_ = TILE_SIZE / (2 * Math.PI);
   }
 
+var tileSize = 256;
+var originShift = 2.0 * Math.PI * 6378137.0 / 2.0;
+var initialResolution = 2.0 * Math.PI * 6378137.0 / tileSize;
+  
+    var Resolution = function( zoom ) {
+        //"Resolution (meters/pixel) for given zoom level (measured at Equator)"
+        //return (2 * Math.PI * 6378137) / (256 * Math.pow(2,zoom));
+        return initialResolution / (Math.pow(2,zoom));
+    }
+
+    var PixelsToMeters = function(px, py, zoom) {
+        //"Converts pixel coordinates in given zoom level of pyramid to EPSG:900913"
+        var res = Resolution( zoom );
+        var mx = px * res - originShift;
+        var my = py * res - originShift;
+        return [mx, my];
+    }
+    var LatLonToMeters = function(lat, lon ){
+        var mx = lon * originShift / 180.0;
+        var my = Math.log( Math.tan((90 + lat) * Math.PI / 360.0 )) / (Math.PI / 180.0);
+        my = my * originShift / 180.0;
+        return [mx, my];
+    }
+    var MetersToLatLon = function(mx, my ) {
+        var lon = (mx / originShift) * 180.0;
+        var lat = (my / originShift) * 180.0;
+        lat = 180 / Math.PI * (2 * Math.atan( Math.exp( lat * Math.PI / 180.0)) - Math.PI / 2.0);
+        return [lon, lat];
+    }
+    var TileBounds = function(tx, ty, zoom) {
+        //"Returns bounds of the given tile in EPSG:900913 coordinates"
+        var mins = PixelsToMeters( tx*tileSize, ty*tileSize, zoom );
+        var maxs = PixelsToMeters( (tx+1)*tileSize, (ty+1)*tileSize, zoom );
+        var minx = mins[0];
+        var miny = -1*maxs[1];
+        var maxx = maxs[0];
+        var maxy = -1*mins[1];
+        return [ minx, miny, maxx, maxy ];
+    }
+var TileLatLonBounds = function( tx, ty, zoom, gp) {
+    //"Returns bounds of the given tile in latutude/longitude using WGS84 datum"
+
+    var bounds = TileBounds( tx, ty, zoom);
+    if (gp) {
+        //return [ bounds[1], bounds[0], bounds[3], bounds[2], (bounds[3]-bounds[1])/256, (bounds[2]-bounds[0])/256];
+        var xs = (bounds[3]-bounds[1])/tileSize;
+        var ys = (bounds[2]-bounds[0])/tileSize;
+        //return [ bounds[1] - (ys/2), bounds[0] - (xs/2), bounds[3] + (ys/2), bounds[2] + (xs/2), xs, ys];
+        return [ bounds[1], bounds[0], bounds[3], bounds[2], xs, ys];
+    } else {
+        var mins = MetersToLatLon(bounds[0], bounds[1]);
+        var minLat = mins[1];
+        var minLon = mins[0];
+        var maxs = MetersToLatLon(bounds[2], bounds[3]);
+        var maxLat = maxs[1];
+        var maxLon = maxs[0];
+        return [ minLat, minLon, maxLat, maxLon ];
+    }
+}
+    
+
   MercatorProjection.prototype.fromLatLngToPoint = function(latLng,
       opt_point) {
     var me = this;
