@@ -55,10 +55,9 @@
     </style>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.6.4/jquery.min.js"></script>
     <script type="text/javascript" src="http://maps.googleapis.com/maps/api/js?sensor=false"> </script>
-    <script type="text/javascript" src="cartoshader.js"> </script>
-    <script type="text/javascript" src="gmaps_mercator.js"> </script>
-    <script type="text/javascript" src="canvas_tile_layer.js"> </script>
-    <script type="text/javascript" src="cartodb_vector.js"> </script>
+    <script type="text/javascript" src="../gmaps_mercator.js"> </script>
+    <script type="text/javascript" src="../canvas_tile_layer.js"> </script>
+    <script type="text/javascript" src="../cartodb_vector.js"> </script>
     <script type="text/javascript" src="https://raw.github.com/JasonSanford/GeoJSON-to-Google-Maps/master/GeoJSON.js"></script>
     <script type="text/javascript">
 
@@ -68,7 +67,7 @@
 
         function initialize() {
             var mapOptions = {
-                zoom: 2,
+                zoom: 13,
                 center: valladolid,
                 mapTypeId: google.maps.MapTypeId.ROADMAP,
                 styles:[
@@ -106,22 +105,12 @@
                     mapOptions);
 
             var cartodb = new CartoDB({
-                user: 'vizzuality',
-                table: 'countries_final',
-                columns: ['pop_est'],
-                /*user: 'vizzuality',
-                table: 'sql_statement',
-                columns: ['rep_area'],*/
+                user: 'jatorre',
+                table: 'ny_districts',
+                columns: ['num_stops_normalized'],
                 where: '',
                 debug: false,
-                shader: {
-                    'point-color': '#FFF',
-                    'line-color': '#F00',
-                    'line-width': '1',
-                    'polygon-fill': function(data) { 
-                        return "rgba(200, 200, 200,"+  Math.min(255, 255*data.num_stops_normalized/15.0)/255.0 + ")";
-                    }
-                }
+                css: "{ $c: Math.min(255, 255*$num_stops_normalized/15.0).toFixed(0); polygon-fill: rgba($c, 32, 128,0.7); line-color: rgba(82, 202, 231,0.1); }"
             });
 
             document.getElementById('update_css').onclick = function() {
@@ -152,57 +141,46 @@
                 // get RGB values from context at current pixel position
                 var c = hit_ctx.getImageData(pixel_offset.x, pixel_offset.y, 1, 1).data;
 
-                // only do something if the hit context has 'visible' data 
-                if (c[3] !== 0){
-                    // get primitive array index from rgb
-                    var primitive_idx = RGB2Int(c[0],c[1],c[2]);
-                    //console.log(tile_id + ' ' + primitive_idx);
+                // get primitive array index from rgb
+                var primitive_idx = RGB2Int(c[0],c[1],c[2]);
+                //console.log(tile_id + ' ' + primitive_idx);
 
-                    if (tile.primitives && tile.primitives[primitive_idx]){
-                        var geom = JSON.stringify(tile.primitives[primitive_idx].geometry);
-                        var text =    "<b>tile:</b> " + coord + '<br>';
-                        text = text + "<b>pixel:</b> " + pixel_offset + '<br>';
-                        text = text + "<b>primitive_idx: </b>" + primitive_idx + '<br>';
-                        //text = text + "<b>geom:</b> " + geom + '<br>';
-                        document.getElementById('mouse_feedback').innerHTML = text;
+                if (tile.primitives && tile.primitives[primitive_idx]){
+                    var geom = JSON.stringify(tile.primitives[primitive_idx].geometry);
+                    var text =    "<b>tile:</b> " + coord + '<br>';
+                    text = text + "<b>pixel:</b> " + pixel_offset + '<br>';
+                    text = text + "<b>primitive_idx: </b>" + primitive_idx + '<br>';
+                    //text = text + "<b>geom:</b> " + geom + '<br>';
+                    document.getElementById('mouse_feedback').innerHTML = text;
 
 
-                        opts = {
-                            "strokeColor": "#FFF366",
-                            "strokeOpacity": 0.8,
-                            "strokeWeight": 2,
-                            "fillColor": "#FFF366",
-                            "fillOpacity": 0.6
-                        };
+                    opts = {
+                        "strokeColor": "#FF7800",
+                        "strokeOpacity": 0.8,
+                        "strokeWeight": 3,
+                        "fillColor": "#FF7800",
+                        "fillOpacity": 0.6
+                    };
 
-                        if (myGoogleVectors.length > 0){
-
-                            myGoogleVectors.forEach(function(gv){
-                                    gv.setMap(null);
-                                    });
-
-                            myGoogleVectors.remove(0,myGoogleVectors.length-1);
-                        }
-
-                        var myGoogleVector = new GeoJSON(tile.primitives[primitive_idx].geometry, opts);
-
-                        if (myGoogleVector.error){
-                            // Handle the error.
-                        }else{
-                            myGoogleVector.setMap(map);
-                            myGoogleVectors.push(myGoogleVector);
-                        }
-                        // render the geometry to canvas here...
-                    }
-                } else {
-                    // in the sea so clear the rollovers
                     if (myGoogleVectors.length > 0){
 
                         myGoogleVectors.forEach(function(gv){
-                                gv.setMap(null);
-                                });
+                            gv.setMap(null);
+                        });
+
                         myGoogleVectors.remove(0,myGoogleVectors.length-1);
                     }
+
+                    var myGoogleVector = new GeoJSON(tile.primitives[primitive_idx].geometry, opts);
+                    myGoogleVector.editable = true;
+
+                    if (myGoogleVector.error){
+                        // Handle the error.
+                    }else{
+                        myGoogleVector.setMap(map);
+                        myGoogleVectors.push(myGoogleVector);
+                    }
+                    // render the geometry to canvas here...
                 }
             });
 
@@ -229,22 +207,10 @@
     <h1>Carto like css</h1>
     <p>change the css and press update css, i.e <em>line-color: #FFF;</em></p>
     <textarea id="css_text">
-     {
-            'point-color': '#FFF',
-            'line-color': "rgba(255, 255, 255, 0.4)",
-            'line-width': '1',
-            'polygon-fill': function(data) { 
-                var q = data.quakegeo_i;
-                var colors = [
-                    "rgba(164,133, 90, 0.8)",
-                    "rgba(163,92,58, 0.8)",
-                    "rgba(147, 48, 33, 0.8)",
-                    "rgba(116, 1, 1, 0.8)"
-                ];
-                q = Math.min(5, q);
-                q = Math.max(0, q);
-                return colors[q];
-            }
+        {
+        $c: Math.min(255, 255*$num_stops_normalized/15.0).toFixed(0);
+        polygon-fill: rgba($c, 32, 128,0.7);
+        line-color: rgba(82, 202, 231,0.1);
         }
     </textarea>
     <button id="update_css">update css</button>

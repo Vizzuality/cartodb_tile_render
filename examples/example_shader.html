@@ -55,9 +55,10 @@
     </style>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.6.4/jquery.min.js"></script>
     <script type="text/javascript" src="http://maps.googleapis.com/maps/api/js?sensor=false"> </script>
-    <script type="text/javascript" src="gmaps_mercator.js"> </script>
-    <script type="text/javascript" src="canvas_tile_layer.js"> </script>
-    <script type="text/javascript" src="cartodb_vector.js"> </script>
+    <script type="text/javascript" src="../cartoshader.js"> </script>
+    <script type="text/javascript" src="../gmaps_mercator.js"> </script>
+    <script type="text/javascript" src="../canvas_tile_layer.js"> </script>
+    <script type="text/javascript" src="../cartodb_vector.js"> </script>
     <script type="text/javascript" src="https://raw.github.com/JasonSanford/GeoJSON-to-Google-Maps/master/GeoJSON.js"></script>
     <script type="text/javascript">
 
@@ -67,7 +68,7 @@
 
         function initialize() {
             var mapOptions = {
-                zoom: 13,
+                zoom: 2,
                 center: valladolid,
                 mapTypeId: google.maps.MapTypeId.ROADMAP,
                 styles:[
@@ -106,11 +107,22 @@
 
             var cartodb = new CartoDB({
                 user: 'vizzuality',
-                table: 'ny_districts',
-                columns: ['num_stops_normalized'],
-                where: '',
+                table: 'countries_final',
+                //columns: ['quakegeo_i'],
+                columns: ['admin'],
+                /*user: 'vizzuality',
+                table: 'sql_statement',
+                columns: ['rep_area'],*/
+                //where: "admin = 'Russia'",
                 debug: false,
-                css: "{ $c: Math.min(255, 255*$num_stops_normalized/15.0).toFixed(0); polygon-fill: rgba($c, 32, 128,0.7); line-color: rgba(82, 202, 231,0.1); }"
+                shader: {
+                    'point-color': '#fff',
+                    'line-color': '#f00',
+                    'line-width': '1',
+                    'polygon-fill': function(data) { 
+                        return "rgba(200, 200, 200, 0.8)";
+                    }
+                }
             });
 
             document.getElementById('update_css').onclick = function() {
@@ -118,10 +130,13 @@
                 cartodb.set_css(document.getElementById('css_text').value);
             };
 
+
+
             map.overlayMapTypes.insertAt(0, cartodb.layer);
             var projection = new MercatorProjection();
             var myGoogleVectors = [];
             google.maps.event.addListener(map, 'mousemove', function (event) {
+                    return;
                 // get tile
                 var coord = projection.latLngToTile(event.latLng,map.zoom);
 
@@ -216,16 +231,27 @@
 
 <div id="css">
     <h1>Carto like css</h1>
-
     <p>change the css and press update css, i.e <em>line-color: #FFF;</em></p>
     <textarea id="css_text">
-        {
-        $c: Math.min(255, 255*$num_stops_normalized/15.0).toFixed(0);
-        polygon-fill: rgba($c, 32, 128,0.7);
-        line-color: rgba(82, 202, 231,0.1);
+     {
+            'point-color': '#FFF',
+            'line-color': "rgba(255, 255, 255, 0.4)",
+            'line-width': '1',
+            'polygon-fill': function(data) { 
+                var q = data.quakegeo_i;
+                var colors = [
+                    "rgba(164,133, 90, 0.8)",
+                    "rgba(163,92,58, 0.8)",
+                    "rgba(147, 48, 33, 0.8)",
+                    "rgba(116, 1, 1, 0.8)"
+                ];
+                q = Math.min(5, q);
+                q = Math.max(0, q);
+                return colors[q];
+            }
         }
     </textarea>
-    <button id="update_css">update css</button> or <a href="#" onclick="$('#css').hide();">close</a>
+    <button id="update_css">update css</button>
 
     <div id="mouse_feedback"></div>
 </div>

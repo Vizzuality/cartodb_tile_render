@@ -55,9 +55,9 @@
     </style>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.6.4/jquery.min.js"></script>
     <script type="text/javascript" src="http://maps.googleapis.com/maps/api/js?sensor=false"> </script>
-    <script type="text/javascript" src="gmaps_mercator.js"> </script>
-    <script type="text/javascript" src="canvas_tile_layer.js"> </script>
-    <script type="text/javascript" src="cartodb_vector.js"> </script>
+    <script type="text/javascript" src="../gmaps_mercator.js"> </script>
+    <script type="text/javascript" src="../canvas_tile_layer.js"> </script>
+    <script type="text/javascript" src="../cartodb_vector.js"> </script>
     <script type="text/javascript" src="https://raw.github.com/JasonSanford/GeoJSON-to-Google-Maps/master/GeoJSON.js"></script>
     <script type="text/javascript">
 
@@ -105,7 +105,7 @@
                     mapOptions);
 
             var cartodb = new CartoDB({
-                user: 'jatorre',
+                user: 'vizzuality',
                 table: 'ny_districts',
                 columns: ['num_stops_normalized'],
                 where: '',
@@ -141,46 +141,57 @@
                 // get RGB values from context at current pixel position
                 var c = hit_ctx.getImageData(pixel_offset.x, pixel_offset.y, 1, 1).data;
 
-                // get primitive array index from rgb
-                var primitive_idx = RGB2Int(c[0],c[1],c[2]);
-                //console.log(tile_id + ' ' + primitive_idx);
+                // only do something if the hit context has 'visible' data 
+                if (c[3] !== 0){
+                    // get primitive array index from rgb
+                    var primitive_idx = RGB2Int(c[0],c[1],c[2]);
+                    //console.log(tile_id + ' ' + primitive_idx);
 
-                if (tile.primitives && tile.primitives[primitive_idx]){
-                    var geom = JSON.stringify(tile.primitives[primitive_idx].geometry);
-                    var text =    "<b>tile:</b> " + coord + '<br>';
-                    text = text + "<b>pixel:</b> " + pixel_offset + '<br>';
-                    text = text + "<b>primitive_idx: </b>" + primitive_idx + '<br>';
-                    //text = text + "<b>geom:</b> " + geom + '<br>';
-                    document.getElementById('mouse_feedback').innerHTML = text;
+                    if (tile.primitives && tile.primitives[primitive_idx]){
+                        var geom = JSON.stringify(tile.primitives[primitive_idx].geometry);
+                        var text =    "<b>tile:</b> " + coord + '<br>';
+                        text = text + "<b>pixel:</b> " + pixel_offset + '<br>';
+                        text = text + "<b>primitive_idx: </b>" + primitive_idx + '<br>';
+                        //text = text + "<b>geom:</b> " + geom + '<br>';
+                        document.getElementById('mouse_feedback').innerHTML = text;
 
 
-                    opts = {
-                        "strokeColor": "#FF7800",
-                        "strokeOpacity": 0.8,
-                        "strokeWeight": 3,
-                        "fillColor": "#FF7800",
-                        "fillOpacity": 0.6
-                    };
+                        opts = {
+                            "strokeColor": "#FFF366",
+                            "strokeOpacity": 0.8,
+                            "strokeWeight": 2,
+                            "fillColor": "#FFF366",
+                            "fillOpacity": 0.6
+                        };
 
+                        if (myGoogleVectors.length > 0){
+
+                            myGoogleVectors.forEach(function(gv){
+                                    gv.setMap(null);
+                                    });
+
+                            myGoogleVectors.remove(0,myGoogleVectors.length-1);
+                        }
+
+                        var myGoogleVector = new GeoJSON(tile.primitives[primitive_idx].geometry, opts);
+
+                        if (myGoogleVector.error){
+                            // Handle the error.
+                        }else{
+                            myGoogleVector.setMap(map);
+                            myGoogleVectors.push(myGoogleVector);
+                        }
+                        // render the geometry to canvas here...
+                    }
+                } else {
+                    // in the sea so clear the rollovers
                     if (myGoogleVectors.length > 0){
 
                         myGoogleVectors.forEach(function(gv){
-                            gv.setMap(null);
-                        });
-
+                                gv.setMap(null);
+                                });
                         myGoogleVectors.remove(0,myGoogleVectors.length-1);
                     }
-
-                    var myGoogleVector = new GeoJSON(tile.primitives[primitive_idx].geometry, opts);
-                    myGoogleVector.editable = true;
-
-                    if (myGoogleVector.error){
-                        // Handle the error.
-                    }else{
-                        myGoogleVector.setMap(map);
-                        myGoogleVectors.push(myGoogleVector);
-                    }
-                    // render the geometry to canvas here...
                 }
             });
 
@@ -205,6 +216,7 @@
 
 <div id="css">
     <h1>Carto like css</h1>
+
     <p>change the css and press update css, i.e <em>line-color: #FFF;</em></p>
     <textarea id="css_text">
         {
@@ -213,7 +225,7 @@
         line-color: rgba(82, 202, 231,0.1);
         }
     </textarea>
-    <button id="update_css">update css</button>
+    <button id="update_css">update css</button> or <a href="#" onclick="$('#css').hide();">close</a>
 
     <div id="mouse_feedback"></div>
 </div>

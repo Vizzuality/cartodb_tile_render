@@ -55,10 +55,10 @@
     </style>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.6.4/jquery.min.js"></script>
     <script type="text/javascript" src="http://maps.googleapis.com/maps/api/js?sensor=false"> </script>
-    <script type="text/javascript" src="cartoshader.js"> </script>
-    <script type="text/javascript" src="gmaps_mercator.js"> </script>
-    <script type="text/javascript" src="canvas_tile_layer.js"> </script>
-    <script type="text/javascript" src="cartodb_vector.js"> </script>
+    <script type="text/javascript" src="../cartoshader.js"> </script>
+    <script type="text/javascript" src="../gmaps_mercator.js"> </script>
+    <script type="text/javascript" src="../canvas_tile_layer.js"> </script>
+    <script type="text/javascript" src="../cartodb_vector.js"> </script>
     <script type="text/javascript" src="https://raw.github.com/JasonSanford/GeoJSON-to-Google-Maps/master/GeoJSON.js"></script>
     <script type="text/javascript">
 
@@ -108,19 +108,18 @@
             var cartodb = new CartoDB({
                 user: 'vizzuality',
                 table: 'countries_final',
-                //columns: ['quakegeo_i'],
-                columns: ['admin'],
+                columns: ['pop_est'],
                 /*user: 'vizzuality',
                 table: 'sql_statement',
                 columns: ['rep_area'],*/
-                //where: "admin = 'Russia'",
+                where: '',
                 debug: false,
                 shader: {
-                    'point-color': '#fff',
-                    'line-color': '#f00',
+                    'point-color': '#FFF',
+                    'line-color': '#F00',
                     'line-width': '1',
                     'polygon-fill': function(data) { 
-                        return "rgba(200, 200, 200, 0.8)";
+                        return "rgba(200, 200, 200,"+  Math.min(255, 255*data.num_stops_normalized/15.0)/255.0 + ")";
                     }
                 }
             });
@@ -130,13 +129,10 @@
                 cartodb.set_css(document.getElementById('css_text').value);
             };
 
-
-
             map.overlayMapTypes.insertAt(0, cartodb.layer);
             var projection = new MercatorProjection();
             var myGoogleVectors = [];
             google.maps.event.addListener(map, 'mousemove', function (event) {
-                    return;
                 // get tile
                 var coord = projection.latLngToTile(event.latLng,map.zoom);
 
