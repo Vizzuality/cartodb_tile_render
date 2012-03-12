@@ -4,6 +4,14 @@ function CartoDB(options) {
     this.projection = new MercatorProjection();
     this.shader = new CartoShader(this.options.shader || '{ point-color: "#000" }');
     this.cache = {};
+    // shader used to render the hit grid
+    this.hit_shader = new CartoShader({
+          'line-color': '#FFF',
+          'line-width': 2,
+          'polygon-fill': function(data, render_context) {
+              return 'rgb(' + Int2RGB(render_context.id).join(',') + ')';
+          }
+      });
 
     if(options.user && options.table) {
         this.base_url = 'http://' + options.user + ".cartodb.com/api/v2/sql";
@@ -17,6 +25,7 @@ CartoDB.prototype.set_css = function(css) {
     this.shader = new CartoShader(css);
     this.layer.redraw();
 }
+
 // executes sql on the cartodb server
 CartoDB.prototype.sql = function(sql, callback) {
     var self = this;
@@ -66,27 +75,20 @@ CartoDB.prototype.tile_data = function(x, y, zoom , callback) {
     var sql = "select " + columns +" from " + opts.table + " WHERE the_geom && ST_SetSRID(ST_MakeBox2D(";
     sql += "ST_Point(" + bbox[0].lng() + "," + bbox[0].lat() +"),";
     sql += "ST_Point(" + bbox[1].lng() + "," + bbox[1].lat() +")), 4326)";
+    if(this.options.where) {
+        sql  += " AND " + this.options.where;
+    }
     this.sql(sql, callback);
 };
 
 
-// apply style to a primitive changing canvas parameters
-CartoDB.prototype.apply_style = function(ctx, data) {
-    this.shader.apply(ctx, data);
-};
-
-// init google maps layer
-CartoDB.prototype._init_layer = function() {
+function Renderer() {
     var self = this;
-    function map_latlon(latlng, x, y, zoom) {
-        latlng = new google.maps.LatLng(latlng[1], latlng[0]);
-        return self.projection.latLngToTilePoint(latlng, x, y, zoom);
-    }
-    var primitive_render = {
-        'Point': function(ctx, x, y, zoom, coordinates) {
+    var primitive_render = this.primitive_render = {
+        'Point': function(ctx, coordinates) {
                   ctx.save();
                   var radius = 2;
-                  var p = map_latlon(coordinates, zoom);
+                  var p = coordinates;
                   ctx.translate(p.x, p.y);
                   ctx.beginPath();
                   ctx.arc(radius, radius, radius, 0, Math.PI * 2, true);
@@ -95,68 +97,116 @@ CartoDB.prototype._init_layer = function() {
                   ctx.stroke();
                   ctx.restore();
         },
-        'MultiPoint': function(ctx, x, y,zoom, coordinates) {
+        'MultiPoint': function(ctx, coordinates) {
               var prender = primitive_render['Point'];
               for(var i=0; i < coordinates.length; ++i) {
                   prender(ctx, zoom, coordinates[i]);
               }
         },
-        'Polygon': function(ctx, x, y, zoom, coordinates) {
+        'Polygon': function(ctx, coordinates) {
               ctx.beginPath();
-              var p = map_latlon(coordinates[0][0], x, y, zoom);
+              var p = coordinates[0][0];
               ctx.moveTo(p.x, p.y);
               for(var i=0; i < coordinates[0].length; ++i) {
-                p = map_latlon(coordinates[0][i], x, y, zoom);
+                p = coordinates[0][i];
                 ctx.lineTo(p.x, p.y);
              }
              ctx.closePath();
              ctx.fill();
              ctx.stroke();
         },
-        'MultiPolygon': function(ctx, x, y, zoom, coordinates) {
+        'MultiPolygon': function(ctx, coordinates) {
               var prender = primitive_render['Polygon'];
               for(var i=0; i < coordinates.length; ++i) {
-                  prender(ctx, x, y, zoom, coordinates[i]);
+                  prender(ctx, coordinates[i]);
               }
         }
     };
+}
 
-    // Method builds a top layer hitgrid. faster, but not as good as a per geometry hitgrid commented below
-    // polygon only
+Renderer.prototype.render = function(ctx, primitives, coord, zoom, shader) {
+  var primitive_render = this.primitive_render;
+  ctx.canvas.width = ctx.canvas.width;
+  if(primitives.length) {
+      for(var i = 0; i < primitives.length; ++i) {
+          var renderer = primitive_render[primitives[i].geometry.type];
+          if(renderer) {
+              // render visible tile
+              var render_context = {
+                  zoom: zoom,
+                  id: i
+              };
+              shader.apply(ctx, primitives[i].properties, render_context);
+              renderer(ctx, primitives[i].geometry.projected);
+          }
+      }
+  }
+};
+
+CartoDB.prototype.convert_geometry = function(geometry, zoom, x, y) {
+    var self = this;
+    function map_latlon(latlng, x, y, zoom) {
+        latlng = new google.maps.LatLng(latlng[1], latlng[0]);
+        return self.projection.latLngToTilePoint(latlng, x, y, zoom);
+    }
+    var primitive_conversion = this.primitive_conversion = {
+        'Point': function(x, y, zoom, coordinates) {
+            return map_latlon(coordinates, x, y, zoom);
+        },
+        'MultiPoint': function(x, y,zoom, coordinates) {
+              var converted = [];
+              var pc = primitive_conversion['Point'];
+              for(var i=0; i < coordinates.length; ++i) {
+                  converted.push(pc(x, y, zoom, coordinates[i]));
+              }
+              return converted;
+        },
+        //do not manage inner polygons!
+        'Polygon': function(x, y, zoom, coordinates) {
+              var coords = [];
+              for(var i=0; i < coordinates[0].length; ++i) {
+                coords.push(map_latlon(coordinates[0][i], x, y, zoom));
+             }
+             return [coords];
+        },
+        'MultiPolygon': function(x, y, zoom, coordinates) {
+              var polys = [];
+              var pc = primitive_conversion['Polygon'];
+              for(var i=0; i < coordinates.length; ++i) {
+                  polys.push(pc(x, y, zoom, coordinates[i]));
+              }
+              return polys;
+        }
+    };
+    var conversor = this.primitive_conversion[geometry.type];
+    if(conversor) {
+        return conversor(x, y , zoom, geometry.coordinates);
+    }
+
+};
+
+// init google maps layer
+CartoDB.prototype._init_layer = function() {
+    var self = this;
+
+    var r = new Renderer();
+    r.projection = self.projection;
+
     this.layer = new CanvasTileLayer(function(tile_info, coord, zoom) {
+
           var ctx = tile_info.ctx;
           var hit_ctx = tile_info.hit_ctx;
-          hit_ctx.strokeStyle = 'rgb(255,255,255)';
-//          hit_ctx.fillStyle ="rgb(255,255,255)";
-          hit_ctx.lineWidth = 2;
-//          hit_ctx.fillRect(0,0,tile_info.width, tile_info.height);
 
           self.tile_data(coord.x, coord.y, zoom, function(data) {
-            var tile_point = self.projection.tilePoint(coord.x, coord.y, zoom);
             var primitives = tile_info.primitives = data.features;
-            // clear canvas
-            ctx.canvas.width = ctx.canvas.width;
-            if(primitives.length) {
-                  for(var i = 0; i < primitives.length; ++i) {
-
-                      // get layer geometry
-                      var renderer = primitive_render[primitives[i].geometry.type];
-
-                      // render 2 tiles. doesn't handle lines
-                      if(renderer) {
-                          // render visible tile
-                          self.apply_style(ctx, primitives[i].properties);
-                          renderer(ctx, coord.x, coord.y, zoom, primitives[i].geometry.coordinates);
-
-                          // render hit tile using index of primitive
-                          hit_ctx.fillStyle = 'rgb(' + Int2RGB(i).join(',') + ')';
-
-                          renderer(hit_ctx, coord.x, coord.y, zoom, primitives[i].geometry.coordinates);
-                      } else {
-                        console.log("no renderer for ", primitives[i].geometry.type);
-                      }
-                   }
+            for(var i = 0; i < primitives.length; ++i) {
+                var p = primitives[i];
+                if(p.geometry.projected === undefined) {
+                    p.geometry.projected = self.convert_geometry(p.geometry, zoom, coord.x, coord.y);
+                }
             }
+            r.render(ctx, primitives, coord, zoom, self.shader);
+            r.render(hit_ctx, primitives, coord, zoom, self.hit_shader);
           });
 
     });
@@ -178,47 +228,3 @@ Int2RGB = function(input){
 
 
 
-
-
-//// TO BUILD A PER FEATURE HITGRID (Will work with overlaps). PRETTY SLOW
-//    this.layer = new CanvasTileLayer(function(tile_info, coord, zoom) {
-//        var ctx = tile_info.ctx;
-//
-//        // draw each primitive onto its own blank canvas to allow us to build up a hitgrid
-//        // Fast in chrome, slow in safari
-//        var layer_canvas  = document.createElement('canvas');
-//        layer_canvas.width  = ctx.width;
-//        layer_canvas.height = ctx.height;
-//        var layer_ctx = layer_canvas.getContext('2d');
-//
-//        tile_info.canvas.width = tile_info.canvas.width ;
-//        self.tile_data(coord.x, coord.y, zoom, function(data) {
-//            var tile_point = self.projection.tilePoint(coord.x, coord.y, zoom);
-//            var primitives = data.features;
-//            if(primitives.length) {
-//                for(var i = 0; i < primitives.length; ++i) {
-//
-//                    // reset primitive layer context
-//                    layer_ctx.clearRect(0,0,layer_canvas.width,layer_canvas.height);
-//
-//                    // get layer geometry
-//                    var renderer = primitive_render[primitives[i].geometry.type];
-//
-//                    // render layer, calculate hitgrid and composite onto main ctx
-//                    if(renderer) {
-//                        self.apply_style(layer_ctx, primitives[i].properties);
-//                        renderer(layer_ctx, coord.x, coord.y, zoom, primitives[i].geometry.coordinates);
-//
-//                        // here is where we would calculate hit grid
-//                        // TODO: Implement hit grid :D
-//
-//                        // composite layer context onto main context
-//                        ctx.drawImage(layer_canvas,0,0);
-//                    } else {
-//                        console.log("no renderer for ", primitives[i].geometry.type);
-//                    }
-//                }
-//            }
-//        });
-//
-//    });
