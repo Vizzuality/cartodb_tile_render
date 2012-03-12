@@ -30,19 +30,20 @@ CanvasTileLayer.prototype.create_tile_canvas = function(coord, zoom, ownerDocume
 
     //set unique id
     var tile_id = coord.x + '_' + coord.y + '_' + zoom;
-    
+
     canvas.setAttribute('id', tile_id);
     hit_canvas.setAttribute('id', tile_id);
 
     if (tile_id in this.tiles)
         delete this.tiles[tile_id];
 
-    this.tiles[tile_id] = {canvas: canvas, ctx: ctx, hit_canvas: hit_canvas, hit_ctx: hit_ctx, coord: coord, zoom: zoom, primitives: null};
+    this.tiles[tile_id] = {
+        canvas: canvas, ctx: ctx, hit_canvas: hit_canvas, hit_ctx: hit_ctx, coord: coord, zoom: zoom, primitives: null};
 
     // custom setup
     if (this.canvas_setup)
         this.canvas_setup(this.tiles[tile_id], coord, zoom);
-    
+
     return canvas;
 }
 
