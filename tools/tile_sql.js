@@ -22,23 +22,34 @@ function data_for_tile(table, x, y, zoom , callback) {
     console.log('-- PIXEL_GEO_SIZE: '
       + pixel_geo_width + ' x ' + pixel_geo_height);
 
-    var maxsize = Math.max(pixel_geo_width, pixel_geo_height);
-    console.log('-- MAX_SIZE: ' + maxsize);
+    var pixel_geo_maxsize = Math.max(pixel_geo_width, pixel_geo_height);
+    console.log('-- MAX_SIZE: ' + pixel_geo_maxsize);
 
-    var tolerance = maxsize / 2;
+    var tolerance = pixel_geo_maxsize / 2;
     console.log('-- TOLERANCE: ' + tolerance);
 
     // simplify
     geom_column = 'ST_Simplify("'+geom_column+'", ' + tolerance + ')';
 
+    // TODO: snap to a grid, somewhere ?
+
+    // This is the query bounding box
+    var sql_env = "ST_MakeEnvelope("
+      + bbox[0].lng() + "," + bbox[0].lat() + ","
+      + bbox[1].lng() + "," + bbox[1].lat() + ", 4326)";
+
+    // clip
+    var ENABLE_CLIPPING = 1
+    if ( ENABLE_CLIPPING ) {
+      // we expand the bounding box by a couple of pixels
+      geom_column = 'ST_Intersection(' + geom_column
+        + ', ST_Expand(' + sql_env + ', ' + pixel_geo_maxsize * 2  + '))';
+    }
+
     var columns = id_column + ',' + geom_column + ' as the_geom';
 
     // profiling only
     //columns = 'sum(st_npoints(' + geom_column + ')) as the_geom';
-
-    var sql_env = "ST_MakeEnvelope("
-      + bbox[0].lng() + "," + bbox[0].lat() + ","
-      + bbox[1].lng() + "," + bbox[1].lat() + ", 4326)";
 
     var sql = "select " + columns +" from " + table;
     sql += " WHERE the_geom && " + sql_env;
