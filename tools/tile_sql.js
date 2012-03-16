@@ -5,28 +5,44 @@ function data_for_tile(table, x, y, zoom , callback) {
     var projection = new MercatorProjection();
     var bbox = projection.tileBBox(x, y, zoom);
     var geom_column = 'the_geom';
+    var id_column = 'cartodb_id';
     var the_geom;
+    var TILE_SIZE = 256;
+    var tile_pixel_width = TILE_SIZE;
+    var tile_pixel_height = TILE_SIZE;
+
+    console.log('-- ZOOM: ' + zoom);
+
+    var tile_geo_width = bbox[1].lng() - bbox[0].lng();
+    var tile_geo_height = bbox[1].lat() - bbox[0].lat();
+
+    var pixel_geo_width = tile_geo_width / tile_pixel_width;
+    var pixel_geo_height = tile_geo_height / tile_pixel_height;
+
+    console.log('-- PIXEL_GEO_SIZE: '
+      + pixel_geo_width + ' x ' + pixel_geo_height);
+
+    var maxsize = Math.max(pixel_geo_width, pixel_geo_height);
+    console.log('-- MAX_SIZE: ' + maxsize);
+
+    var tolerance = maxsize / 2;
+    console.log('-- TOLERANCE: ' + tolerance);
 
     // simplify
-    // todo: replace with area/vertices ratio dependent?
-    if (zoom >= 17){
-      the_geom = geom_column
-    } else if (zoom >= 14 ){
-      the_geom = 'ST_SimplifyPreserveTopology("'+geom_column+'",0.000001) as the_geom'
-    } else if (zoom >= 10){
-      the_geom = 'ST_SimplifyPreserveTopology("'+geom_column+'",0.0001) as the_geom'
-    } else if (zoom >=6){
-      the_geom = 'ST_SimplifyPreserveTopology("'+geom_column+'",0.001) as the_geom'
-    } else if (zoom >= 4){
-      the_geom = 'ST_SimplifyPreserveTopology("'+geom_column+'",0.01) as the_geom'
-    } else {
-      the_geom = 'ST_SimplifyPreserveTopology("'+geom_column+'",0.1) as the_geom'
-    }
+    geom_column = 'ST_Simplify("'+geom_column+'", ' + tolerance + ')';
 
-    var columns = "*"
-    var sql = "select " + columns +" from " + table + " WHERE the_geom && ST_SetSRID(ST_MakeBox2D(";
-    sql += "ST_Point(" + bbox[0].lng() + "," + bbox[0].lat() +"),";
-    sql += "ST_Point(" + bbox[1].lng() + "," + bbox[1].lat() +")), 4326)";
+    var columns = id_column + ',' + geom_column + ' as the_geom';
+
+    // profiling only
+    //columns = 'sum(st_npoints(' + geom_column + ')) as the_geom';
+
+    var sql_env = "ST_MakeEnvelope("
+      + bbox[0].lng() + "," + bbox[0].lat() + ","
+      + bbox[1].lng() + "," + bbox[1].lat() + ", 4326)";
+
+    var sql = "select " + columns +" from " + table;
+    sql += " WHERE the_geom && " + sql_env;
+
     callback(sql);
 };
 
@@ -37,6 +53,6 @@ if (process.argv.length == 6) {
         console.log(sql);
     });
 } else {
-    console.log("usage: node " + process.argv[1] + " table zoom x y")
+    console.log("usage: node " + process.argv[1] + " table x y zoom")
 }
 
