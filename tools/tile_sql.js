@@ -46,7 +46,7 @@ if (process.argv.length < 4) {
    }
 
    var logger = function(sql) {
-        console.log(sql);
+        console.log(sql + ';');
    };
 
   console.log("-- Y range = " + miny + ":" + maxy);
