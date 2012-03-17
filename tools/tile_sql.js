@@ -16,7 +16,7 @@ function parse_range(val) {
 
 
 if (process.argv.length < 4) {
-   console.log("usage: node " + process.argv[1] + " <table> <zoom> [<x>] [<y>]")
+   console.log("usage: node " + process.argv[1] + " <table> <zoom> [<x>[:<x2>]] [<y>[:<y2>]]")
 } else {
 
    args = process.argv.slice(2)
