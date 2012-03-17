@@ -47,40 +47,70 @@ function test() {
     console.log("EYY");
 }
 
-//get data for a tile
-CartoDB.prototype.tile_data = function(x, y, zoom , callback) {
-    var opts = this.options;
+function get_tile_data_sql (table, x, y, zoom) {
     var projection = new MercatorProjection();
     var bbox = projection.tileBBox(x, y, zoom);
     var geom_column = 'the_geom';
+    var id_column = 'cartodb_id';
     var the_geom;
+    var TILE_SIZE = 256;
+    var tile_pixel_width = TILE_SIZE;
+    var tile_pixel_height = TILE_SIZE;
+
+    console.log('-- ZOOM: ' + zoom);
+
+    var tile_geo_width = bbox[1].lng() - bbox[0].lng();
+    var tile_geo_height = bbox[1].lat() - bbox[0].lat();
+
+    var pixel_geo_width = tile_geo_width / tile_pixel_width;
+    var pixel_geo_height = tile_geo_height / tile_pixel_height;
+
+    console.log('-- PIXEL_GEO_SIZE: '
+      + pixel_geo_width + ' x ' + pixel_geo_height);
+
+    var pixel_geo_maxsize = Math.max(pixel_geo_width, pixel_geo_height);
+    console.log('-- MAX_SIZE: ' + pixel_geo_maxsize);
+
+    var tolerance = pixel_geo_maxsize / 2;
+    console.log('-- TOLERANCE: ' + tolerance);
 
     // simplify
-    // todo: replace with area/vertices ratio dependent?
-    if (zoom >= 17){
-      the_geom = geom_column
-    } else if (zoom >= 14 ){
-      the_geom = 'ST_SimplifyPreserveTopology("'+geom_column+'",0.000001) as the_geom'
-    } else if (zoom >= 10){
-      the_geom = 'ST_SimplifyPreserveTopology("'+geom_column+'",0.0001) as the_geom'
-    } else if (zoom >=6){
-      the_geom = 'ST_SimplifyPreserveTopology("'+geom_column+'",0.001) as the_geom'
-    } else if (zoom >= 4){
-      the_geom = 'ST_SimplifyPreserveTopology("'+geom_column+'",0.01) as the_geom'
-    } else {
-      the_geom = 'ST_SimplifyPreserveTopology("'+geom_column+'",0.1) as the_geom'
+    geom_column = 'ST_Simplify("'+geom_column+'", ' + tolerance + ')';
+
+    // TODO: snap to a grid, somewhere ?
+
+    // This is the query bounding box
+    var sql_env = "ST_MakeEnvelope("
+      + bbox[0].lng() + "," + bbox[0].lat() + ","
+      + bbox[1].lng() + "," + bbox[1].lat() + ", 4326)";
+
+    // clip
+    var ENABLE_CLIPPING = 0
+    if ( ENABLE_CLIPPING ) {
+      // we expand the bounding box by a couple of pixels
+      geom_column = 'ST_Intersection(' + geom_column
+        + ', ST_Expand(' + sql_env + ', ' + pixel_geo_maxsize * 2  + '))';
     }
 
-    var columns = [the_geom].concat(opts.columns).join(',');
-    var sql = "select " + columns +" from " + opts.table + " WHERE the_geom && ST_SetSRID(ST_MakeBox2D(";
-    sql += "ST_Point(" + bbox[0].lng() + "," + bbox[0].lat() +"),";
-    sql += "ST_Point(" + bbox[1].lng() + "," + bbox[1].lat() +")), 4326)";
-    if(this.options.where) {
-        sql  += " AND " + this.options.where;
-    }
-    this.sql(sql, callback);
+    var columns = id_column + ',' + geom_column + ' as the_geom';
+
+    // profiling only
+    //columns = 'sum(st_npoints(' + geom_column + ')) as the_geom';
+
+    var sql = "select " + columns +" from " + table;
+    sql += " WHERE the_geom && " + sql_env;
+
+    console.log('-- SQL: ' + sql);
+
+    return sql;
 };
 
+CartoDB.prototype.tile_data = function(x, y, zoom , callback) {
+    var opts = this.options;
+    var table = opts.table;
+    var sql = get_tile_data_sql(table, x, y, zoom);
+    this.sql(sql, callback);
+};
 
 function Renderer() {
     var self = this;
@@ -105,6 +135,7 @@ function Renderer() {
         },
         'Polygon': function(ctx, coordinates) {
               ctx.beginPath();
+              if ( ! coordinates[0] || ! coordinates[0][0] ) return;
               var p = coordinates[0][0];
               ctx.moveTo(p.x, p.y);
               for(var i=0; i < coordinates[0].length; ++i) {
@@ -164,9 +195,11 @@ CartoDB.prototype.convert_geometry = function(geometry, zoom, x, y) {
         //do not manage inner polygons!
         'Polygon': function(x, y, zoom, coordinates) {
               var coords = [];
-              for(var i=0; i < coordinates[0].length; ++i) {
-                coords.push(map_latlon(coordinates[0][i], x, y, zoom));
-             }
+              if ( coordinates[0] ) {
+                for(var i=0; i < coordinates[0].length; ++i) {
+                  coords.push(map_latlon(coordinates[0][i], x, y, zoom));
+                }
+              }
              return [coords];
         },
         'MultiPolygon': function(x, y, zoom, coordinates) {
@@ -225,6 +258,4 @@ Int2RGB = function(input){
     var b = parseInt(input / 256 / 256) % 256;
     return [r,g,b];
 };
-
-
 
