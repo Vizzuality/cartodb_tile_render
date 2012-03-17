@@ -47,8 +47,7 @@ function test() {
     console.log("EYY");
 }
 
-function get_tile_data_sql (table, x, y, zoom) {
-    var projection = new MercatorProjection();
+CartoDB.get_tile_data_sql = function(projection, table, x, y, zoom) {
     var bbox = projection.tileBBox(x, y, zoom);
     var geom_column = 'the_geom';
     var id_column = 'cartodb_id';
@@ -108,7 +107,8 @@ function get_tile_data_sql (table, x, y, zoom) {
 CartoDB.prototype.tile_data = function(x, y, zoom , callback) {
     var opts = this.options;
     var table = opts.table;
-    var sql = get_tile_data_sql(table, x, y, zoom);
+    var prj = this.projection;
+    var sql = CartoDB.get_tile_data_sql(prj, table, x, y, zoom);
     this.sql(sql, callback);
 };
 
@@ -259,3 +259,6 @@ Int2RGB = function(input){
     return [r,g,b];
 };
 
+if (typeof module !== 'undefined') {
+   module.exports.CartoDB = CartoDB;
+}
