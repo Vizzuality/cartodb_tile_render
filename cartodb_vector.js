@@ -94,7 +94,10 @@ CartoDB.get_tile_data_sql = function(projection, table, x, y, zoom) {
     var columns = id_column + ',' + geom_column + ' as the_geom';
 
     // profiling only
-    //columns = 'sum(st_npoints(' + geom_column + ')) as the_geom';
+    var COUNT_ONLY = 0
+    if ( COUNT_ONLY ) {
+      columns = 'sum(st_npoints(' + geom_column + ')) as the_geom';
+    }
 
     var sql = "select " + columns +" from " + table;
     sql += " WHERE the_geom && " + sql_env;
