@@ -49,9 +49,9 @@ function test() {
 
 CartoDB.get_tile_data_sql = function(projection, table, x, y, zoom) {
     var bbox = projection.tileBBox(x, y, zoom);
-    var geom_column = 'the_geom';
+    var geom_column = '"the_geom"';
+    var geom_column_orig = '"the_geom"';
     var id_column = 'cartodb_id';
-    var the_geom;
     var TILE_SIZE = 256;
     var tile_pixel_width = TILE_SIZE;
     var tile_pixel_height = TILE_SIZE;
@@ -74,9 +74,23 @@ CartoDB.get_tile_data_sql = function(projection, table, x, y, zoom) {
     console.log('-- TOLERANCE: ' + tolerance);
 
     // simplify
-    geom_column = 'ST_Simplify("'+geom_column+'", ' + tolerance + ')';
+    var ENABLE_SIMPLIFY = 1
+    if ( ENABLE_SIMPLIFY ) {
+      geom_column = 'ST_Simplify(' + geom_column + ', ' + tolerance + ')';
+      // may change type
+      geom_column = 'ST_CollectionExtract(' + geom_column + ', ST_Dimension( '
+        + geom_column_orig + ') + 1 )';
+    }
 
-    // TODO: snap to a grid, somewhere ?
+    // snap to a pixel grid 
+    var ENABLE_SNAPPING = 0
+    if ( ENABLE_SNAPPING ) {
+      geom_column = 'ST_SnapToGrid(' + geom_column + ', '
+                    + pixel_geo_maxsize + ')';
+      // may change type
+      geom_column = 'ST_CollectionExtract(' + geom_column + ', ST_Dimension( '
+        + geom_column_orig + ') + 1 )';
+    }
 
     // This is the query bounding box
     var sql_env = "ST_MakeEnvelope("
@@ -84,11 +98,31 @@ CartoDB.get_tile_data_sql = function(projection, table, x, y, zoom) {
       + bbox[1].lng() + "," + bbox[1].lat() + ", 4326)";
 
     // clip
-    var ENABLE_CLIPPING = 0
+    var ENABLE_CLIPPING = 1
     if ( ENABLE_CLIPPING ) {
-      // we expand the bounding box by a couple of pixels
+
+      // This is a slightly enlarged version of the query bounding box
+      var sql_env_exp = 'ST_Expand(' + sql_env + ', '
+                                     + ( pixel_geo_maxsize * 2 ) + ')';
+      // Also must be snapped to the grid ...
+      sql_env_exp = 'ST_SnapToGrid(' + sql_env_exp + ','
+                                     + pixel_geo_maxsize + ')';
+
+      // snap to box
+      geom_column = 'ST_Snap(' + geom_column + ', ' + sql_env_exp
+          + ', ' + pixel_geo_maxsize + ')';
+
+      // Make valid (both ST_Snap and ST_SnapToGrid and ST_Expand
+      var ENABLE_FIXING = 1
+      if ( ENABLE_FIXING ) {
+        geom_column = 'ST_MakeValid(' + geom_column + ')';
+        geom_column = 'ST_CollectionExtract(' + geom_column + ', ST_Dimension( '
+          + geom_column_orig + ') + 1 )';
+      }
+
+      // clip by box
       geom_column = 'ST_Intersection(' + geom_column
-        + ', ST_Expand(' + sql_env + ', ' + pixel_geo_maxsize * 2  + '))';
+        + ', ' + sql_env_exp + ')';
     }
 
     var columns = id_column + ',' + geom_column + ' as the_geom';
@@ -96,7 +130,8 @@ CartoDB.get_tile_data_sql = function(projection, table, x, y, zoom) {
     // profiling only
     var COUNT_ONLY = 0
     if ( COUNT_ONLY ) {
-      columns = 'sum(st_npoints(' + geom_column + ')) as the_geom';
+      columns = x + ' as x, ' + y + ' as y, sum(st_npoints('
+                + geom_column + ')) as the_geom';
     }
 
     var sql = "select " + columns +" from " + table;
