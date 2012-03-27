@@ -115,9 +115,14 @@ CartoDB.get_tile_data_sql = function(projection, table, x, y, zoom) {
       // Make valid (both ST_Snap and ST_SnapToGrid and ST_Expand
       var ENABLE_FIXING = 1
       if ( ENABLE_FIXING ) {
-        geom_column = 'ST_MakeValid(' + geom_column + ')';
-        geom_column = 'ST_CollectionExtract(' + geom_column + ', ST_Dimension( '
-          + geom_column_orig + ') + 1 )';
+        // NOTE: up to PostGIS-2.0.0 beta5 ST_MakeValid did not accept
+        //       points nor GeometryCollection objects
+        geom_column = 'CASE WHEN ST_Dimension('
+          + geom_column + ') = 0 OR GeometryType('
+          + geom_column + ") = 'GEOMETRYCOLLECTION' THEN "
+          + geom_column + ' ELSE ST_CollectionExtract(ST_MakeValid('
+          + geom_column + '), ST_Dimension(' + geom_column_orig
+          + ') + 1 ) END';
       }
 
       // clip by box
