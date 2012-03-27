@@ -33,24 +33,25 @@ if (process.argv.length < 4) {
 
    if ( args.length > 2 ) {
     range = args[2].split(':');
-    miny = parseInt(range[0]);
-    if ( range.length > 1 ) maxy = parseInt(range[1]);
-    else maxy = miny;
-   }
-
-   if ( args.length > 3 ) {
-    range = args[3].split(':');
     minx = parseInt(range[0]);
     if ( range.length > 1 ) maxx = parseInt(range[1]);
     else maxx = minx;
    }
 
+   if ( args.length > 3 ) {
+    range = args[3].split(':');
+    miny = parseInt(range[0]);
+    if ( range.length > 1 ) maxy = parseInt(range[1]);
+    else maxy = miny;
+   }
+
+
    var logger = function(sql) {
         console.log(sql + ';');
    };
 
+  console.log("-- X range = " + minx + ":" + maxx);
   console.log("-- Y range = " + miny + ":" + maxy);
-  console.log("-- X range =  " + minx + ":" + maxx);
 
   for (y=miny; y<=maxy; ++y) {
     for (x=minx; x<=maxx; ++x) {
